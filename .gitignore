@@ -169,3 +169,18 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# ====================== my own ignored...
+_Data_Produced/
+_Data_Raw/
+_Results/
+LEiDA_results/
+TempTests/
+*.xlsx
+*.mat
+*.pkl
+*.npy
+*.npz
+*.csv
+*.dat
+
