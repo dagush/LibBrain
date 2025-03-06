@@ -17,6 +17,7 @@ import nibabel as nib
 # ==========================================================================
 from DataLoaders.WorkBrainFolder import *
 from DataLoaders.baseDataLoader import DataLoader
+from DataLoaders.Parcellations.atlas import Atlas
 
 
 class ADNI_E(DataLoader):
@@ -40,6 +41,7 @@ class ADNI_E(DataLoader):
         self.fMRI_path = self.base_folder + 'excite/{}/{}_rs_reg.nii.gz'
         self.avg_path = self.base_folder + 'excite/{}/{}_rs_avg.nii.gz'
         self.t1_path = self.base_folder + 'excite/{}/{}_t1_mni.nii.gz'
+        self.aal_path = self.base_folder + 'excite/{}/{}_rs_aal.nii.gz'
 
     def TR(self):  # Returns a float with the TR of the dataset
         return 3  # Repetition Time (seconds)
@@ -75,6 +77,9 @@ class ADNI_E(DataLoader):
         brain_t1 = nib.load(file)
         t1 = brain_avg.get_fdata()
 
+        file = self.aal_path.format(subjectID,subjectID)
+        aal = Atlas(file)
+
         if not (brain_vols.affine == brain_avg.affine).any() or \
            not (brain_avg.affine == brain_t1.affine).any() or \
            not (brain_t1.affine == brain_vols.affine).any():  # OK,  I know, no need for the 3 checks...
@@ -86,6 +91,7 @@ class ADNI_E(DataLoader):
             'avg': avg,
             't1': t1,
             'affine': brain_t1.affine,
+            'atlas': aal,
         }
 
     def get_parcellation(self):
@@ -118,11 +124,11 @@ if __name__ == '__main__':
     print(check_first_volumes(s1))
     print(check_first_volumes(s2))
 
-    import Utils.Plotting.plot2DSliced_Brain as plot
+    # import Utils.Plotting.plot2DSliced_Brain as plot
     # plot.plotBrain(s1['t1'], title='002_S_0413', cmap='gray')
     # plot.plotBrain(s1['timeseries'], title='002_S_0413 (0)', frame=0, cmap='gray')
     # plot.plotBrain(s1['timeseries'], title='002_S_0413 (100)', frame=100, cmap='gray')
-    plot.plot_timeseries(s1['timeseries'], title='002_S_0413 (100)', slice=22, cmap='gray')
+    # plot.plot_timeseries(s1['timeseries'], title='002_S_0413 (100)', slice=22, cmap='gray')
 
 
     # avgSC = DL.get_AvgSC_ctrl()

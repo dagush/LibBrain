@@ -16,17 +16,16 @@ parcellation_folder = WorkBrainDataFolder + '_Parcellations/'
 class Atlas:
     def __init__(self, parcellation, N=None, normalization=None, RSN=7):
         # ----- select parcellation
-        # self.data = hdf.loadmat(parcellation_file)['V_' + parcellation]
         if parcellation == 'dbs80':
-            file = 'dbs80/dbs80symm_2mm.nii.gz'
+            file = parcellation_folder + 'dbs80/dbs80symm_2mm.nii.gz'
         elif parcellation == 'Glasser360':
-            file = 'Glasser360/glasser360MNI.nii.gz'
+            file = parcellation_folder + 'Glasser360/glasser360MNI.nii.gz'
         elif parcellation == 'Schaefer2018':
-            file = f'Schaefer2018/MNI/Schaefer2018_{N}Parcels_{RSN}Networks_order_FSLMNI152_{normalization}mm.nii.gz'
-        else:
-            raise Exception(f'Parcellation {parcellation} not recognized')
+            file = parcellation_folder + f'Schaefer2018/MNI/Schaefer2018_{N}Parcels_{RSN}Networks_order_FSLMNI152_{normalization}mm.nii.gz'
+        else:  # none of the above, generic parcellation
+            file = parcellation
         # ----- load parcellation
-        self.brain_vol = nib.load(parcellation_folder + file)
+        self.brain_vol = nib.load(file)
         # ----- extract some useful info!
         # What is the type of this object?
         # print(f'type: {type(self.brain_vol)}')
