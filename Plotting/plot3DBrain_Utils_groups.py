@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
-from Utils.Plotting.plot3DBrain_Utils import plot_ViewAx
+from Plotting.plot3DBrain_Utils import plot_ViewAx
 
 
 # =================================================================

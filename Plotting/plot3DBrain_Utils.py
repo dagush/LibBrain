@@ -252,7 +252,7 @@ def plot_multiview5ValuesForEachChort(burdens, crtx, title, metaName, display, c
 if __name__ == '__main__':
     from matplotlib import cm
 
-    from Utils.Plotting.project3DBrain import set_up_Glasser360_cortex
+    from Plotting.project3DBrain import set_up_Glasser360_cortex
     crtx = set_up_Glasser360_cortex()
 
     # =============== Plot!!! =============================
