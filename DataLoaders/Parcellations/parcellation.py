@@ -3,6 +3,9 @@
 #
 # =====================================================================================
 class Parcellation:
+    def __init__(self):
+        print("Initializing Parcellation")
+
     def get_coords(self):
         raise NotImplemented('Should have been implemented by subclass!')
 
@@ -21,7 +24,7 @@ class Parcellation:
     def get_RSN(self, useLR=False):
         raise NotImplemented('Should have been implemented by subclass!')
 
-    def get_atlas(self):
+    def get_atlas_MNI(self):
         raise NotImplemented('Should have been implemented by subclass!')
 
     def get_data(self, attribute):
@@ -36,6 +39,6 @@ class Parcellation:
         elif attribute == 'RSN':
             return self.get_RSN()
         elif attribute == 'atlas':
-            return self.get_atlas()
+            return self.get_atlas_MNI()
         else:
             return None  # if the attribute is not one of the ones defined above

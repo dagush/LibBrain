@@ -17,6 +17,7 @@ import nibabel as nib
 # ==========================================================================
 from DataLoaders.WorkBrainFolder import *
 from DataLoaders.baseDataLoader import DataLoader
+from DataLoaders.Parcellations.aal import aal
 from DataLoaders.Parcellations.atlas import Atlas
 
 
@@ -50,7 +51,8 @@ class ADNI_E(DataLoader):
         raise Exception('We are using VOXELS here!')
 
     def get_classification(self):  # Returns a dict with {subjID: groupLabel}
-        return {s: 'all' for s in self.data['ID']}
+        res = {s: d for s, d in zip(self.data['ID'], self.data['DIAG'])}
+        return res
 
     def get_subjectData(self, subjectID):
         """
@@ -78,7 +80,7 @@ class ADNI_E(DataLoader):
         t1 = brain_avg.get_fdata()
 
         file = self.aal_path.format(subjectID,subjectID)
-        aal = Atlas(file)
+        aal_atlas = Atlas(file)
 
         if not (brain_vols.affine == brain_avg.affine).any() or \
            not (brain_avg.affine == brain_t1.affine).any() or \
@@ -91,16 +93,16 @@ class ADNI_E(DataLoader):
             'avg': avg,
             't1': t1,
             'affine': brain_t1.affine,
-            'atlas': aal,
+            'atlas': aal_atlas,
         }
 
     def get_parcellation(self):
-        return NotImplementedError('This should have been implemented by a subclass')
+        return aal(version=1)
 
     # -------------------------- Convenience methods -----------------------------------
     # get_fullGroup_data: convenience method to load all data for a given group
     def get_fullGroup_data(self, group):
-        raise Exception('Do not try to load full group data')
+        raise Exception('Do not try to load full group data (too much!)')
 
 
 # ================================================================================================================

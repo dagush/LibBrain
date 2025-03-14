@@ -49,7 +49,7 @@ class dbs80(Parcellation):
         RSN_labels = [self.names[int(r)-1] for r in data]
         return RSN_labels
 
-    def get_atlas(self):
+    def get_atlas_MNI(self):
         return Atlas('dbs80')
 
 # ================================================================================================================

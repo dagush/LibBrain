@@ -54,7 +54,7 @@ class Glasser379(Parcellation):
         raise NotImplemented('Unfinished implementation!')
         indicesFileParcellationRSN = f'../../Data_Produced/Parcellations/Glasser360RSN_{"14" if useLR else "7"}_indices.csv'
 
-    def get_atlas(self):
+    def get_atlas_MNI(self):
         warnings.warn('Using Atlas from Glasser360 instead of Glasser379')
         return Atlas('Glasser360')
 

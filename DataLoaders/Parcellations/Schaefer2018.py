@@ -43,7 +43,7 @@ class Schaefer2018(Parcellation):
         RSNs = [n.split('_')[2] if not useLR else n.split('_')[2]+'_'+n.split('_')[1] for n in names]
         return RSNs
 
-    def get_atlas(self):
+    def get_atlas_MNI(self):
         return Atlas('Schaefer2018',
                      N=self.N, normalization=self.normalization, RSN=self.RSN)
 

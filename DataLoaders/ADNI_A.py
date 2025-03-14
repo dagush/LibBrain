@@ -103,7 +103,7 @@ def loadSubjectData(subject, correcSCMatrix=True, normalizeBurden=True):
     abeta_burden = loadBurden(subject, "Amyloid", base_folder, normalize=normalizeBurden)
     tau_burden = loadBurden(subject, "Tau", base_folder, normalize=normalizeBurden)
 
-    fMRI_path = base_folder+"fMRI/"+subject+"/MNINonLinear/_Results/Restingstate/"
+    fMRI_path = base_folder+"fMRI/"+subject+"/MNINonLinear/Results/Restingstate/"
     series = np.loadtxt(fMRI_path+subject+"_Restingstate_Atlas_MSMAll_hp2000_clean.ptseries.txt")
     subcSeries = np.loadtxt(fMRI_path+subject+"_Restingstate_Atlas_MSMAll_hp2000_clean_subcort.ptseries.txt")
     fullSeries = np.concatenate((series,subcSeries))
@@ -230,9 +230,9 @@ class ADNI_A(DataLoader):
             groupFMRI[s] = {'timeseries': cutTimeSeriesIfNeeded(groupFMRI[s])}
         return groupFMRI
 
-    def get_AvgSC_ctrl(self, normalized=None):
+    def get_AvgSC_ctrl(self, normalized=False):
         avgMatrix = computeAvgSC_HC_Matrix(classification, base_folder+"connectomes/")
-        if normalized is not None:
+        if normalized:
             return correctSC(avgMatrix)
         else:
             return avgMatrix
