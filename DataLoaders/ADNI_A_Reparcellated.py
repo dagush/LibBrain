@@ -15,7 +15,8 @@ from DataLoaders.Parcellations import Schaefer2018
 # ==========================================================================
 # Important config options: filenames
 # ==========================================================================
-# from DataLoaders.WorkBrainFolder import *
+from DataLoaders.WorkBrainFolder import *
+base_folder = WorkBrainDataFolder + "ADNI-A/"
 
 
 # ================================================================================================================
@@ -28,7 +29,7 @@ class ADNI_A_Reparcellated(DataLoader):
     def __init__(self, path=None,
                  ):
         self.groups = ['HC', 'MCI', 'AD']
-        self.file_path = '_Data_Produced/Reparcellated/'
+        self.file_path = base_folder + 'Reparcellated/'
         self.data = {}
         self.__loadAllData()
 
