@@ -12,8 +12,9 @@ import Utils.geometric as geometric
 # ===========================
 #  Convenience function for the Glasser parcellation, for debug purposes only...
 # ===========================
-def set_up_Glasser360_cortex():
-    Glasser360_baseFolder = "../../_Data_Raw/_Parcellations/Glasser360/"
+def set_up_Glasser360_cortex(base_folder):
+    Glasser360_baseFolder = base_folder + "Glasser360/"
+
     # =============== Load the geometry ==================
     glassers_L = nib.load(Glasser360_baseFolder + 'Glasser360.L.mid.32k_fs_LR.surf.gii')
     # glassers_L = nib.load(Glasser360_baseFolder + 'Glasser360.L.inflated.32k_fs_LR.surf.gii')

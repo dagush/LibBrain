@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 # from pandas.compat.numpy.function import validate_min
 
-from Utils.Plotting.plot3DBrain import plotColorView
+from Plotting.plot3DBrain import plotColorView
 
 
 # set the colormap and centre the colorbar
@@ -253,7 +253,8 @@ if __name__ == '__main__':
     from matplotlib import cm
 
     from Plotting.project3DBrain import set_up_Glasser360_cortex
-    crtx = set_up_Glasser360_cortex()
+    import DataLoaders.WorkBrainFolder as WBF
+    crtx = set_up_Glasser360_cortex(WBF.WorkBrainDataFolder + '_Parcellations/')
 
     # =============== Plot!!! =============================
     testData = np.arange(0, 360)
