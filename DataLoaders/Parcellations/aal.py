@@ -33,13 +33,9 @@ class aal(Parcellation):
                 self.atlas_file = self.aal_folder + 'AAL3v1_1mm.nii'
             else:
                 self.atlas_file = self.aal_folder + 'AAL3v1.nii'
+        self.names_data = self._load_names_file()
 
-    # def get_coords(self):
-    #     # cog = self.data[['R','A','S']].to_numpy()
-    #     # return cog
-    #     pass
-
-    def get_region_labels(self):
+    def _load_names_file(self):
         if self.version == 1 or self.version == 2:
             labels_file = f'ROI_MNI_V{self.version+3}.txt'
             df = pd.read_csv(self.aal_folder + labels_file, sep='\\t', header=None,
@@ -47,9 +43,21 @@ class aal(Parcellation):
         else:
             labels_file = f'ROI_MNI_V7_1mm_vol.txt' if self.sampling_size == 1 else f'ROI_MNI_V7_vol.txt'
             df = pd.read_csv(self.aal_folder + labels_file, sep='\\t')
+        return df
 
-        nlist = df['nom_l'].tolist()
+    # def get_coords(self):
+    #     # cog = self.data[['R','A','S']].to_numpy()
+    #     # return cog
+    #     pass
+
+    def get_region_labels(self):
+        nlist = self.names_data['nom_l'].tolist()
         return nlist
+
+    def get_IDs(self):
+        nlist = self.names_data['vol_vox'].tolist()
+        return nlist
+
 
     # def get_RSN(self, useLR=False):
     #     # names = self.get_region_labels()

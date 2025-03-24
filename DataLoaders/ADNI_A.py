@@ -161,11 +161,10 @@ def analyzeMatrix(name, C):
 # because they last several weeks (~4 to 6), which seems impossible to complete with modern Windows SO,
 # which restarts the computer whenever it wants to perform supposedly "urgent" updates...
 force_Tmax = True
-BOLD_length = 197
 
 
 # This method is to perform the timeSeries cutting when excessively long...
-def cutTimeSeriesIfNeeded(timeseries, limit_forcedTmax=BOLD_length):
+def cutTimeSeriesIfNeeded(timeseries, limit_forcedTmax):
     if force_Tmax and timeseries.shape[1] > limit_forcedTmax:
         print(f"cutting lengthy timeseries: {timeseries.shape[1]} to {limit_forcedTmax}")
         timeseries = timeseries[:,0:limit_forcedTmax]
@@ -206,6 +205,7 @@ class ADNI_A(DataLoader):
         self.normalizeBurden = normalizeBurden
         global force_Tmax
         force_Tmax = cutTimeSeries
+        self.BOLD_length = 197
 
     def name(self):
         return 'ADNI_A'
@@ -227,7 +227,7 @@ class ADNI_A(DataLoader):
     def get_fullGroup_data(self, group):
         groupFMRI = load_fullCohort_fMRI(classification, base_folder, cohort=group)
         for s in groupFMRI:
-            groupFMRI[s] = {'timeseries': cutTimeSeriesIfNeeded(groupFMRI[s])}
+            groupFMRI[s] = {'timeseries': cutTimeSeriesIfNeeded(groupFMRI[s], self.BOLD_length)}
         return groupFMRI
 
     def get_AvgSC_ctrl(self, normalized=False):
@@ -247,12 +247,12 @@ class ADNI_A(DataLoader):
         return classification
 
     def get_subjectData(self, subjectID):
-        # 1st load
+        # 1st, load
         SCnorm, abeta_burden, tau_burden, timeseries = loadSubjectData(subjectID,
                                                                        correcSCMatrix=self.correcSCMatrix,
                                                                        normalizeBurden=self.normalizeBurden)
-        # 2nd cut
-        timeseries = cutTimeSeriesIfNeeded(timeseries)[:self.N()]
+        # 2nd, cut
+        timeseries = cutTimeSeriesIfNeeded(timeseries, self.BOLD_length)[:self.N()]
         return {subjectID:
                     {'timeseries': timeseries,
                      'ABeta': abeta_burden,

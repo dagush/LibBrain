@@ -21,6 +21,9 @@ class Parcellation:
     def get_lobes(self):
         raise NotImplemented('Should have been implemented by subclass!')
 
+    def get_IDs(self):
+        raise NotImplemented('Should have been implemented by subclass!')
+
     def get_RSN(self, useLR=False):
         raise NotImplemented('Should have been implemented by subclass!')
 
@@ -40,5 +43,22 @@ class Parcellation:
             return self.get_RSN()
         elif attribute == 'atlas':
             return self.get_atlas_MNI()
+        elif attribute == 'IDs':
+            return self.get_IDs()
         else:
             return None  # if the attribute is not one of the ones defined above
+
+    def get_label_ID(self, label=None, ID=None):
+        if label is None and ID is None:
+            raise Exception('Label or ID must be specified!')
+        else:
+            ids = self.get_IDs()
+            ls = self.get_region_labels()
+            if label is not None:
+                return ids[ls.index(label)]
+            else:
+                return ls[ids.index(ID)]
+
+# =====================================================================================
+# =====================================================================================
+# =====================================================================================EOF
