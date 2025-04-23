@@ -39,7 +39,7 @@ class aal(Parcellation):
         if self.version == 1 or self.version == 2:
             labels_file = f'ROI_MNI_V{self.version+3}.txt'
             df = pd.read_csv(self.aal_folder + labels_file, sep='\\t', header=None,
-                             names=['nom_c', 'nom_l', 'vol_vox'])
+                             names=['nom_c', 'nom_l', 'vol_vox'], engine='python')
         else:
             labels_file = f'ROI_MNI_V7_1mm_vol.txt' if self.sampling_size == 1 else f'ROI_MNI_V7_vol.txt'
             df = pd.read_csv(self.aal_folder + labels_file, sep='\\t')

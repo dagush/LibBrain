@@ -41,5 +41,39 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return array[idx]
 
+# Translated from the code by Daiki Sekizawa
+# From
+# Decomposing Thermodynamic Dissipation of Linear Langevin Systems via Oscillatory Modes
+# and Its Application to Neural Dynamics, Daiki Sekizawa, Sosuke Ito, Masafumi Oizumi,
+# Phys. Rev. X 14, 041003 – Published 4 October, 2024
+# DOI: https://doi.org/10.1103/PhysRevX.14.041003
+def matrix_spectral_decomposition(M):
+    """
+    Perform spectral decomposition of a matrix.
+    M = ∑ₖ λₖ Fₖ, where λₖ are the eigenvalues and Fₖ are the projection matrices.
 
+    Args:
+        M (ndarray): The input square matrix to decompose.
+
+    Returns:
+        lambdas (ndarray): The eigenvalues of the matrix.
+        F (list): The projection matrices corresponding to the eigenvalues.
+                  F[k] is the projection matrix Fₖ for the k-th eigenvalue.
+    """
+
+    # Compute eigenvalues and eigenvectors
+    lambdas, P = np.linalg.eig(M)
+
+    # Extract eigenvalues from the diagonal of D (already done above)
+
+    # Initialize list for projection matrices
+    d = M.shape[0]
+    F = [None] * d
+
+    # Compute projection matrices
+    P_inv = np.linalg.inv(P)  # Compute the inverse of P
+    for k in range(len(lambdas)):
+        F[k] = np.outer(P[:, k], P_inv[k, :])  # Projection matrix F_k
+
+    return lambdas, F
 # ======================EOF

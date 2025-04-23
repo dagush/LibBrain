@@ -11,7 +11,7 @@ import neuronumba.observables.ph_fcd as phFCD
 
 def plotPhIntMatrSlice(PhIntMat, t,
                        axisName="Regions", matrixName="Phase Functional Connectivity Dynamics (phFCD)", showAxis='on'):
-    import plotSC
+    import plot_SC_FC
     plotSC.plotFancyMatrix(PhIntMat[..., t], axisName=axisName, matrixName=matrixName, showAxis=showAxis)
 
 

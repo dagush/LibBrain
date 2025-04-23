@@ -4,7 +4,7 @@
 # --------------------------------------------------------------------------------------
 import numpy as np
 import matplotlib.pyplot as plt
-import Utils.Plotting.p_values as p_values
+import Plotting.p_values as p_values
 
 from scipy.stats import friedmanchisquare
 import scikit_posthocs as sp

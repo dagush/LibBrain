@@ -226,11 +226,11 @@ def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
     if pairs == None:
         pairs = list(combinations(columnLables, 2))
     annotator = Annotator(ax, pairs, data=df, order=list(columnLables))
+    annotator.configure(test=test, text_format='star', loc='inside')
     if custom_test is None:
         annotator.configure(test='Mann-Whitney')
     else:
         annotator.configure(test=custom_test)
-    annotator.configure(test=test, text_format='star', loc='inside')
     if comparisons_correction is not None:
         annotator.configure(comparisons_correction=comparisons_correction, correction_format="replace")  # BH / Bonferroni
     annotator.apply_and_annotate()

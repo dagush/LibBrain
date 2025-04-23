@@ -1,47 +1,48 @@
 # =====================================================================================
-# Methods to plot a few properties SC matrices
+# Methods to plot a few properties SC/FC matrices
 # =====================================================================================
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def plotSCHistogram(ax, SC, subjectName):
+def plot_histogram(ax, matr, subjectName):
     # plt.rcParams["figure.figsize"] = (7,5)
     # plt.rcParams["figure.dpi"] = 300
     # plt.figure()  #num=None, figsize=(8, 6), dpi=200, facecolor='w', edgecolor='k')
     bins = 50 #'auto'
-    n, bins, patches = ax.hist(SC.flatten(), bins=bins, color='#0504aa', alpha=0.7, histtype='step')  #, rwidth=0.85)
+    n, bins, patches = ax.hist(matr.flatten(), bins=bins, color='#0504aa', alpha=0.7, histtype='step')  #, rwidth=0.85)
     ax.grid(axis='y', alpha=0.75)
     ax.set_xlabel('SC weights')
     ax.set_ylabel('Counts')
-    ax.set_title("SC histogram ({}: {})".format(subjectName, SC.shape), fontweight="bold", fontsize="18")
+    ax.set_title("SC histogram ({}: {})".format(subjectName, matr.shape), fontweight="bold", fontsize="18")
     # plt.savefig("./_Results/Abeta/"+subject+".png", dpi=200)
     # plt.close()
 
 
-def plotSC(ax, SC, title, labelAxis='both', colormap='viridis', fontSize=24):
-    ax.imshow(np.asarray(SC), cmap=colormap)
+def plot_matr(ax, matr, title, labelAxis='both', colormap='viridis', fontSize=24):
+    ax.imshow(np.asarray(matr), cmap=colormap)
     if labelAxis == 'both' or labelAxis == 'xlabels':
         ax.set_xlabel("Regions")
     if labelAxis == 'both' or labelAxis == 'ylabels':
             ax.set_ylabel("Regions")
     ax.set_title(title, fontsize=fontSize)
     # ax.tick_params(left=True, right=True, labelleft=True, labelbottom=True, bottom=True)
-    print(f"Scale({title}): Max={np.max(SC)}, Min={np.min(SC)}")
+    print(f"Scale({title}): Max={np.max(matr)}, Min={np.min(matr)}")
 
 
-def plotSC_and_Histogram(subjectName, SCnorm, plotColorBar = True):
+def plot_matr_and_Histogram(subjectName, SCnorm, plotColorBar = True):
     plt.rcParams.update({'font.size': 15})
     fig = plt.figure()
     grid = plt.GridSpec(1, 2)
     ax1 = fig.add_subplot(grid[0,0])
-    plotSC(ax1, SCnorm, subjectName)
+    plot_matr(ax1, SCnorm, subjectName)
     if plotColorBar:
         img = ax1.get_images()[0]
         fig.colorbar(img)
     ax2 = fig.add_subplot(grid[0,1])
-    plotSCHistogram(ax2, SCnorm, subjectName)
+    plot_histogram(ax2, SCnorm, subjectName)
     plt.suptitle("Structural Connectivity ({})".format(subjectName), fontweight="bold", fontsize="18", y=1.05)
     # fig.subplots_adjust(right=0.8)
     # cbar_ax = fig.add_axes([0.85, 0.2, 0.01, 0.6])
@@ -50,12 +51,12 @@ def plotSC_and_Histogram(subjectName, SCnorm, plotColorBar = True):
     plt.show()
 
 
-def justPlotSC(subjectName, SCnorm, plottingFunction, colormap='viridis'):
+def just_plot_matrix(subjectName, matr, plottingFunction, colormap='viridis'):
     plt.rcParams.update({'font.size': 15})
     fig = plt.figure()
     grid = plt.GridSpec(1, 1)
     ax = fig.add_subplot(grid[0,0])
-    plottingFunction(ax, SCnorm, subjectName, colormap=colormap)
+    plottingFunction(ax, matr, subjectName, colormap=colormap)
     plt.show()
 
 
@@ -74,7 +75,7 @@ def largest_indices(ary, n):
 # =====================================================================================================================
 # Plot SC as a graph
 # =====================================================================================================================
-def plotSCMatrixAsFancyGraph(M):
+def plot_matrix_as_fancy_graph(M):
     plt.rcParams.update({'font.size': 25})
     import networkx as nx
 
@@ -105,22 +106,37 @@ def plotSCMatrixAsFancyGraph(M):
     d = [(d[node]+1) * 20 for node in G.nodes()]
     pos=nx.fruchterman_reingold_layout(G, k=1/np.sqrt(M2[0].size))
     nx.draw(G, with_labels=False, node_size=d, node_color=color_map, pos=pos, ax=ax)
-    plt.title("Structural connectivity Graph")
+    plt.title("Connectivity Graph")
 
     plt.legend(handles=legend_elements)
     plt.show()
 
 
-def plotFancyMatrix(M, axisName="Regions", matrixName="Structural Connectivity Matrix", showAxis='on', fontSize=25, cmap='viridis'):
-    plt.rcParams.update({'font.size': fontSize})
-    plt.matshow(M, cmap=cmap)
-    plt.colorbar()
-    plt.title(matrixName)
-    plt.xlabel(axisName)
-    plt.ylabel(axisName)
-    plt.axis(showAxis)
-    plt.show()
+def plot_fancy_matrix_ax(ax, M,
+                      axisName="Regions",
+                      matrixName="Connectivity Matrix",
+                      showAxis='on', cmap='viridis'):
+    im = ax.matshow(M, cmap=cmap)
+    ax.set_title(matrixName)
+    ax.set_xlabel(axisName)
+    ax.set_ylabel(axisName)
+    ax.axis(showAxis)
+    return im
 
+
+def plot_fancy_matrix(M,
+                      axisName="Regions",
+                      matrixName="Connectivity Matrix",
+                      showAxis='on', fontSize=25, cmap='viridis'):
+    plt.rcParams.update({'font.size': fontSize})
+    fig, ax = plt.subplots()
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    im = plot_fancy_matrix_ax(ax, M,
+                         axisName=axisName, matrixName=matrixName,
+                         showAxis=showAxis, cmap=cmap)
+    fig.colorbar(im, cax=cax, orientation='vertical')
+    plt.show()
 
 # =====================================================================================================
 # =====================================================================================================

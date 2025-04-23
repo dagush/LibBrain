@@ -23,12 +23,16 @@ from DataLoaders.Parcellations.atlas import Atlas
 
 class ADNI_E(DataLoader):
     def __init__(self, path=None,
+                 full_dataset=False,
                  ):
         self.groups = ['all']
         if path is not None:
             self.set_basePath(path)
         else:
-            self.set_basePath(WorkBrainDataFolder)
+            if not full_dataset:
+                self.set_basePath(WorkBrainDataFolder)
+            else:
+                self.set_basePath('D:/Neuro/')
         self.__load_general_data()
 
     def __load_general_data(self):
@@ -49,6 +53,9 @@ class ADNI_E(DataLoader):
 
     def N(self):  # returns an integer with the number of RoIs in the parcellation
         raise Exception('We are using VOXELS here!')
+
+    def get_groupLabels(self):  # Returns a list with all group labels
+        return ['CTRL', 'MCI', 'AD']  # use my own sorting
 
     def get_classification(self):  # Returns a dict with {subjID: groupLabel}
         res = {s: d for s, d in zip(self.data['ID'], self.data['DIAG'])}
