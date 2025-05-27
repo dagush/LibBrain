@@ -91,16 +91,16 @@ class DataLoader():
     # ===================== Normalize a SC matrix
     # Implements the two most basic methods, for any other one, should be overwritten...
     def _normalize_SC(self, SC,
-                       normalizationMethod='maxSC',  # maxLogNode/maxSC
-                       normalizationFactor=0.2,  # 0.7275543904602363
-                       ):
+                      normalizationMethod='maxSC',  # maxLogNode/maxSC
+                      normalizationFactor=0.2,  # 0.7275543904602363
+                      ):
         if normalizationMethod == 'maxLogNode':
             logMatrix = np.log(SC + 1)
             maxNodeInput = np.max(np.sum(logMatrix, axis=0))  # This is the same as np.max(logMatrix @ np.ones(N))
             finalMatrix = logMatrix * normalizationFactor / maxNodeInput
         elif normalizationMethod == 'maxSC':
             finalMatrix = SC / np.max(SC) * normalizationFactor
-        else:
+        else:  # Otherwise, do not normalize at all!
             finalMatrix = SC
         return finalMatrix
 

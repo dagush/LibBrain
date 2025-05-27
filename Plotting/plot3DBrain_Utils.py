@@ -208,6 +208,11 @@ def plot_ViewAx(ax, cortex, data, numRegions, view,
                       suptitle=suptitle, cmap=cmap, **kwds)
         plotColorView(ax, cortex, data, numRegions, 'R-superior',
                       suptitle=suptitle, cmap=cmap, **kwds)
+    elif view == 'inferior':
+        plotColorView(ax, cortex, data, numRegions, 'L-inferior',
+                      suptitle=suptitle, cmap=cmap, **kwds)
+        plotColorView(ax, cortex, data, numRegions, 'R-inferior',
+                      suptitle=suptitle, cmap=cmap, **kwds)
     else:  # this is 'Lh-medial' / 'Lh-lateral' / 'Rh-medial' / 'Rh-lateral' / 'L-flat' / 'R-flat'
         plotColorView(ax, cortex, data, numRegions, view,
                       suptitle=suptitle, cmap=cmap, **kwds)

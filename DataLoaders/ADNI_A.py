@@ -64,8 +64,8 @@ def getClassifications():
 # =====================================================================================
 def loadBurden(subject, modality, baseFolder, normalize=True):
     pet_path = baseFolder + "/PET_loads/"+subject+"/PET_PVC_MG/" + modality
-    RH_pet = np.loadtxt(pet_path+"/"+"L."+modality+"_load_MSMAll.pscalar.txt")
-    LH_pet = np.loadtxt(pet_path+"/"+"R."+modality+"_load_MSMAll.pscalar.txt")
+    RH_pet = np.loadtxt(pet_path+"/"+"R."+modality+"_load_MSMAll.pscalar.txt")
+    LH_pet = np.loadtxt(pet_path+"/"+"L."+modality+"_load_MSMAll.pscalar.txt")
     subcort_pet = np.loadtxt(pet_path+"/"+modality+"_load.subcortical.txt")[-19:]
     all_pet = np.concatenate((LH_pet,RH_pet,subcort_pet))
     if normalize:
@@ -232,10 +232,12 @@ class ADNI_A(DataLoader):
 
     def get_AvgSC_ctrl(self, normalized=False):
         avgMatrix = computeAvgSC_HC_Matrix(classification, base_folder+"connectomes/")
-        if normalized:
+        if normalized == True or normalized == 'maxLogNode':
             return correctSC(avgMatrix)
-        else:
+        elif normalized == False:
             return avgMatrix
+        else:
+            raise Exception(f"Unknown normalization: {normalized}")
 
     def get_groupSubjects(self, group):
         return getCohortSubjects(group)
