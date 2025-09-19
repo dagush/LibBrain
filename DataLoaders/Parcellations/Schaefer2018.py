@@ -26,6 +26,9 @@ class Schaefer2018(Parcellation):
         self.normalization = normalization  # 1/2
         self.load()
 
+    def get_name(self):
+        return "Schaefer2018"
+
     def load(self):
         filename = f"Schaefer2018_{self.N}Parcels_{self.RSN}Networks_order_FSLMNI152_{self.normalization}mm.Centroid_RAS.csv"
         self.data = pd.read_csv(centroids_folder + filename, delimiter=',')

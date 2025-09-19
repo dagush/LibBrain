@@ -70,6 +70,10 @@ class DataLoader():
     def discardSubject(self, subjectID):
         raise NotImplementedError('This should have been implemented by a subclass')
 
+    def discardSubjects(self, subjectIDs):
+        for subj in subjectIDs:
+            self.discardSubject(subj)
+
     def get_subjectDatum(self, subjectID, attribute):  # returns a single datum for a given subject
         data = self.get_subjectData(subjectID)
         if attribute in data[subjectID]:

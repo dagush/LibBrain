@@ -2,6 +2,8 @@
 # ================================================================================================================
 # Full code for loading the ADNI_E dataset
 # This dataset is in raw voxel space
+# TR = 3 - timepoints: 197
+# Subjects: HC 187, MCI 107, AD 38
 #
 # Dataset graciously provided by Frithjof Kruggel
 #
@@ -43,10 +45,11 @@ class ADNI_E(DataLoader):
 
     def set_basePath(self, path):
         self.base_folder = path + "ADNI-E/"
-        self.fMRI_path = self.base_folder + 'excite/{}/{}_rs_reg.nii.gz'
-        self.avg_path = self.base_folder + 'excite/{}/{}_rs_avg.nii.gz'
-        self.t1_path = self.base_folder + 'excite/{}/{}_t1_mni.nii.gz'
-        self.aal_path = self.base_folder + 'excite/{}/{}_rs_aal.nii.gz'
+        excite_base_folder = self.base_folder + "excite2/"
+        self.fMRI_path = excite_base_folder + '{}/{}_rs_reg.nii.gz'
+        self.avg_path = excite_base_folder + '{}/{}_rs_avg.nii.gz'
+        self.t1_path = excite_base_folder + '{}/{}_t1_mni.nii.gz'
+        self.aal_path = excite_base_folder + '{}/{}_rs_aal.nii.gz'
 
     def TR(self):  # Returns a float with the TR of the dataset
         return 3  # Repetition Time (seconds)

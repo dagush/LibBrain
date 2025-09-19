@@ -11,9 +11,13 @@ from DataLoaders.Parcellations.atlas import Atlas
 
 from DataLoaders.WorkBrainFolder import *
 glasserParcellationFolder = WorkBrainDataFolder + "_Parcellations/Glasser360/"
+glasserDataProducedFolder = WorkBrainProducedDataFolder + '_Parcellations/'
 
 
 class Glasser379(Parcellation):
+    def get_name(self):
+        return "Glasser379"
+
     def get_coords(self):
         # ----------------- coordinates, but only for the 360 version...
         cog = np.loadtxt(glasserParcellationFolder + 'Glasser360_coords.txt')
@@ -51,8 +55,12 @@ class Glasser379(Parcellation):
         return lobes
 
     def get_RSN(self, useLR=False):
-        raise NotImplemented('Unfinished implementation!')
-        indicesFileParcellationRSN = f'../../Data_Produced/Parcellations/Glasser360RSN_{"14" if useLR else "7"}_indices.csv'
+        df = pd.read_csv(glasserDataProducedFolder + f'Glasser360RSN_{"14" if useLR else "7"}_indices.csv')
+        records = df.to_dict('records')
+        RSNs = {e['RSN Label']:e['Indices'] for e in records}
+        RSNs = {rsn:np.array(eval(RSNs[rsn]), dtype=int) for rsn in RSNs}
+        return RSNs
+
 
     def get_atlas_MNI(self):
         warnings.warn('Using Atlas from Glasser360 instead of Glasser379')

@@ -50,6 +50,9 @@ class aal(Parcellation):
     #     # return cog
     #     pass
 
+    def get_name(self):
+        return "AAL"
+
     def get_region_labels(self):
         nlist = self.names_data['nom_l'].tolist()
         return nlist

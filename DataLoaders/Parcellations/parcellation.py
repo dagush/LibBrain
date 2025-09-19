@@ -6,6 +6,9 @@ class Parcellation:
     def __init__(self):
         print("Initializing Parcellation")
 
+    def get_name(self):
+        return NotImplemented('Should have been implemented by subclass!')
+
     def get_coords(self):
         raise NotImplemented('Should have been implemented by subclass!')
 

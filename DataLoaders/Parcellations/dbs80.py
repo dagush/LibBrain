@@ -17,6 +17,9 @@ dbs80ParcellationFolder = WorkBrainDataFolder + "_Parcellations/dbs80/"
 class dbs80(Parcellation):
     names = ['Visual', 'Somatomotor', 'Dorsal Attention', 'Ventral Attention', 'Limbic', 'Frontoparietal', 'Default', 'Subcortical']
 
+    def get_name(self):
+        return "dbs80"
+
     # def get_coords(self):
     #     # ----------------- coordinates, but only for the 80 version...
     #     cog = np.loadtxt(dbs80ParcellationFolder + 'Glasser360_coords.txt')
