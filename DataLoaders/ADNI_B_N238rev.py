@@ -3,8 +3,10 @@
 # RoIs: 400 - TR = 3 - timepoints: 197
 # Subjects: N238rev - HC 109, MCI 90, AD 39
 # Info for each subject: timeseries
+# Note: not all subjects have ABeta and Tau...
 #
-# Parcellated by NOELIA MARTINEZ MOLINA
+# fMRI Parcellated by NOELIA MARTINEZ MOLINA
+# ABeta and Tau by David Aquilué Llorens
 #
 # Code by Gustavo Patow
 # --------------------------------------------------------------------------------------
