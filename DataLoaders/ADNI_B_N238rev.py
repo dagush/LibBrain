@@ -27,8 +27,7 @@ from DataLoaders.WorkBrainFolder import *
 
 # ================================================================================================================
 # ================================================================================================================
-# Loading generalization layer:
-# These methods are used for the sole purpose of homogenizing data loading across projects
+# ADNI_B_N238rev Loading
 # ================================================================================================================
 # ================================================================================================================
 class ADNI_B_N238rev(DataLoader):
@@ -97,7 +96,6 @@ class ADNI_B_N238rev(DataLoader):
             self.burdens[task] = self.__loadSubjects_burden(IDs)
             print(f'----------- done {task} --------------')
         meta_data_path = self.base_folder + 'ADNI3_N238rev_with_ABETA_Status.xlsx'
-        # labels en la columna Abeta_pvc, donde pvc= partial volume correction. 1=Abeta+, 0=Abeta-. Y el threshold es >24CL.
         self.meta_information = pd.read_excel(meta_data_path)
         print(f'----------- done loading All --------------')
 
@@ -158,10 +156,71 @@ class ADNI_B_N238rev(DataLoader):
 
 
 # ================================================================================================================
+# ================================================================================================================
+# Alternate Classification DataLoader
+# This allows different classification schemes, such as
+#       ['HC', 'AD']  -> all subjects with labels AH and AD, irrespectively of their ABeta status
+#       ['HC', 'MCI(AB-)', 'MCI(AB+)', 'AD']  -> Same as before, with the MCI subjects that are either AB- or AB+
+#       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD']
+#       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD(AB+)']
+# Observe the last two should be the same, but with all the AD or only those with an AB+ status
+# Note: at this moment, this class is intimately related to the ADNI_B_N238rev DataLoader
+# ================================================================================================================
+# ================================================================================================================
+class ADNI_B_Alt(DataLoader):
+    def __init__(self, new_classification, path=None,
+                 prefiltered_fMRI=False,):
+        self.DL = ADNI_B_N238rev(path, prefiltered_fMRI=prefiltered_fMRI)
+        self.groups = new_classification
+        self.classification = {}
+        orig_classification = self.DL.get_classification()
+
+        # Regex: group + optional (BURDEN with optional + or -)
+        pattern = re.compile(r"^([A-Z]+)(?:\(([A-Z]+)([+-]?)\))?$")
+
+        for subject in orig_classification:
+            subject_group = orig_classification[subject]
+            for group in new_classification:
+                if subject_group in group:  # we discard the subject if it is NOT in any set
+                    m = pattern.match(group)
+                    if m:
+                        group_id, burden, sign = m.groups()
+                        if burden is None:
+                            self.classification[subject] = group
+                        else:
+                            data = self.get_subjectData(subject)[subject]
+                            # labels are in the Abeta_pvc column, where pvc = partial volume correction.
+                            # 1=Abeta+, 0=Abeta-;   threshold is >24CL.
+                            # Subjects without ABeta classification are discarded
+                            if ((data['meta']['ABeta_pvc'] == 0 and sign=='-')  # ABeta-
+                                    or
+                                (data['meta']['ABeta_pvc'] == 1 and sign=='+')):  # ABeta+
+                                self.classification[subject] = group
+
+        print(self.get_subject_count())
+
+    def name(self):
+        return 'ADNI_B_N238rev_alt'
+
+    def get_groupLabels(self):
+        return self.groups
+
+    def get_classification(self):
+        return self.classification
+
+    def get_subjectData(self, subjectID):
+        return self.DL.get_subjectData(subjectID)
+
+    def get_parcellation(self):
+        return self.DL.get_parcellation()
+
+
+# ================================================================================================================
 print('_Data_Raw loading done!')
 # =========================  debug
 if __name__ == '__main__':
-    DL = ADNI_B_N238rev()
+    # DL = ADNI_B_N238rev()
+    DL = ADNI_B_Alt(['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD(AB+)'])
     sujes = DL.get_classification()
     gCtrl = DL.get_groupSubjects('HC')
     s1 = DL.get_subjectData('002_S_6007')

@@ -83,6 +83,14 @@ class DataLoader():
         else:
             return None  # if the attribute does not exist in the subject data
 
+    def get_subject_count(self):
+        classific = self.get_classification()
+        groups = self.get_groupLabels()
+        counts = {gr: 0 for gr in groups}
+        for group in groups:
+            counts[group] = sum(1 for v in classific.values() if v == group)
+        return counts
+
     # ===================== compute the Avg SC matrix over the HC sbjects
     def __computeAvgSC_HC_Matrix(self, ctrl_label):
         HC = self.get_groupSubjects(ctrl_label)
