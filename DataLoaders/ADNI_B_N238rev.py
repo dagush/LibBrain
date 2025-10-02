@@ -214,6 +214,12 @@ class ADNI_B_Alt(DataLoader):
     def get_parcellation(self):
         return self.DL.get_parcellation()
 
+    def TR(self):
+        return self.DL.TR()
+
+    def N(self):
+        return self.DL.N()
+
 
 # ================================================================================================================
 print('_Data_Raw loading done!')
