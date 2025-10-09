@@ -33,6 +33,7 @@ from DataLoaders.WorkBrainFolder import *
 class ADNI_B_N238rev(DataLoader):
     def __init__(self, path=None,
                  prefiltered_fMRI=False,
+                 discard_AD_ABminus=True,
                  # ADNI_version='N238rev',  # N238rev
                  # SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation
                  ):
@@ -47,8 +48,10 @@ class ADNI_B_N238rev(DataLoader):
         self.burdens = {}
         self.meta_information = None
         self.__loadAllData()
-        # ---------- discard all subjects with AD and ABeta-, because they are not subjects with dementia by AD...
-        self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013','126_S_6721'])
+        if discard_AD_ABminus:
+            # ---------- discard all subjects with AD and ABeta-, because they are not subjects usually
+            #            classified as having with dementia by AD...
+            self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013','126_S_6721'])
 
     # ---------------- load fMRI data
     def __loadSubjects_fMRI(self, IDs, fMRI_path):
@@ -159,7 +162,7 @@ class ADNI_B_N238rev(DataLoader):
 # ================================================================================================================
 # Alternate Classification DataLoader
 # This allows different classification schemes, such as
-#       ['HC', 'AD']  -> all subjects with labels AH and AD, irrespectively of their ABeta status
+#       ['HC', 'AD']  -> all subjects with labels HC and AD, irrespectively of their ABeta status
 #       ['HC', 'MCI(AB-)', 'MCI(AB+)', 'AD']  -> Same as before, with the MCI subjects that are either AB- or AB+
 #       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD']
 #       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD(AB+)']
