@@ -172,8 +172,10 @@ class ADNI_B_N238rev(DataLoader):
 # ================================================================================================================
 class ADNI_B_Alt(DataLoader):
     def __init__(self, new_classification, path=None,
-                 prefiltered_fMRI=False,):
-        self.DL = ADNI_B_N238rev(path, prefiltered_fMRI=prefiltered_fMRI)
+                 prefiltered_fMRI=False,
+                 discard_AD_ABminus=True):
+        self.DL = ADNI_B_N238rev(path, prefiltered_fMRI=prefiltered_fMRI,
+                                 discard_AD_ABminus=discard_AD_ABminus)
         self.groups = new_classification
         self.classification = {}
         orig_classification = self.DL.get_classification()
