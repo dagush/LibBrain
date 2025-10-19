@@ -1,6 +1,18 @@
-from sympy.physics.control.control_plots import matplotlib
+# from sympy.physics.control.control_plots import matplotlib
 
 import matplotlib.pyplot as plt
+
+
+def plot_point_cloud(parcellationData, title=''):
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    for r in parcellationData:
+        ax.scatter(r[0], r[1], r[2], marker='o')
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    ax.set_title(title)
+    plt.show()
 
 
 def plot_2x3D_brains(c_coords, p_coords):
