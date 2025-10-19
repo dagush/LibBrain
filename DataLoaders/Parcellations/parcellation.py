@@ -9,7 +9,10 @@ class Parcellation:
     def get_name(self):
         return NotImplemented('Should have been implemented by subclass!')
 
-    def get_coords(self):
+    def get_N(self):
+        return NotImplemented('Should have been implemented by subclass!')
+
+    def get_CoGs(self):
         raise NotImplemented('Should have been implemented by subclass!')
 
     def get_region_labels(self):

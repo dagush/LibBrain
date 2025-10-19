@@ -29,11 +29,14 @@ class Schaefer2018(Parcellation):
     def get_name(self):
         return "Schaefer2018"
 
+    def get_N(self):
+        return self.N
+
     def load(self):
         filename = f"Schaefer2018_{self.N}Parcels_{self.RSN}Networks_order_FSLMNI152_{self.normalization}mm.Centroid_RAS.csv"
         self.data = pd.read_csv(centroids_folder + filename, delimiter=',')
 
-    def get_coords(self):
+    def get_CoGs(self):
         cog = self.data[['R','A','S']].to_numpy()
         return cog
 

@@ -15,12 +15,26 @@ glasserDataProducedFolder = WorkBrainProducedDataFolder + '_Parcellations/'
 
 
 class Glasser379(Parcellation):
+    def __init__(self, N=379):
+        self.N = N
+
     def get_name(self):
         return "Glasser379"
 
-    def get_coords(self):
-        # ----------------- coordinates, but only for the 360 version...
-        cog = np.loadtxt(glasserParcellationFolder + 'Glasser360_coords.txt')
+    def get_N(self):
+        return self.N
+
+    def get_CoGs(self):
+        if self.N == 360:
+            # ----------------- coordinates, but only for the 360 version...
+            cog = np.loadtxt(glasserParcellationFolder + 'Glasser360_coords.txt')
+        elif self.N == 379:
+            # ----------------- coordinates, but only for the 379 version...
+            centres = pd.read_csv(glasserParcellationFolder + 'Glasser379_centres.txt',
+                                  sep='\t', header=None, names=['ID', 'X', 'Y', 'Z'])
+            cog = centres[['X', 'Y', 'Z']].to_numpy()
+        else:
+            raise Exception(f'Unknow N={self.N}')
         return cog
 
     def get_region_labels(self):

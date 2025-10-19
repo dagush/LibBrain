@@ -20,6 +20,9 @@ class dbs80(Parcellation):
     def get_name(self):
         return "dbs80"
 
+    def get_N(self):
+        return 80
+
     # def get_coords(self):
     #     # ----------------- coordinates, but only for the 80 version...
     #     cog = np.loadtxt(dbs80ParcellationFolder + 'Glasser360_coords.txt')
