@@ -32,7 +32,7 @@ from DataLoaders.WorkBrainFolder import *
 # ================================================================================================================
 class ADNI_B_N238rev(DataLoader):
     def __init__(self, path=None,
-                 prefiltered_fMRI=False,
+                 # prefiltered_fMRI=False,
                  discard_AD_ABminus=True,
                  # ADNI_version='N238rev',  # N238rev
                  # SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation
@@ -41,9 +41,9 @@ class ADNI_B_N238rev(DataLoader):
         # self.ADNI_version = ADNI_version
         self.groups = ['HC','MCI', 'AD']
         if path is not None:
-            self.set_basePath(path, prefiltered_fMRI)
+            self.set_basePath(path)  #, prefiltered_fMRI)
         else:
-            self.set_basePath(WorkBrainDataFolder, prefiltered_fMRI)
+            self.set_basePath(WorkBrainDataFolder)  #, prefiltered_fMRI)
         self.timeseries = {}
         self.burdens = {}
         self.meta_information = None
@@ -77,12 +77,12 @@ class ADNI_B_N238rev(DataLoader):
             if abeta is None: abeta_fails.append(str(id))
             if tau is None: tau_fails.append(str(id))
             res[id] = {'ABeta': abeta, 'Tau': tau}
-        print(f'Failed loads:\n     ABeta ({len(abeta_fails)}): {abeta_fails}')
-        print(f'     Tau ({len(tau_fails)}): {tau_fails}')
-        intersection = set(abeta_fails).intersection(set(tau_fails))
-        print(f'     Intersection ({len(intersection)}): {intersection}')
-        union = set(abeta_fails).union(set(tau_fails))
-        print(f'     Union ({len(union)}): {union}')
+        # print(f'Failed loads:\n     ABeta ({len(abeta_fails)}): {abeta_fails}')
+        # print(f'     Tau ({len(tau_fails)}): {tau_fails}')
+        # intersection = set(abeta_fails).intersection(set(tau_fails))
+        # print(f'     Intersection ({len(intersection)}): {intersection}')
+        # union = set(abeta_fails).union(set(tau_fails))
+        # print(f'     Union ({len(union)}): {union}')
         return res
 
     def __loadAllData(self, # SchaeferSize,
@@ -105,13 +105,13 @@ class ADNI_B_N238rev(DataLoader):
     def name(self):
         return 'ADNI_B_N238rev'
 
-    def set_basePath(self, path, prefiltered_fMRI):
+    def set_basePath(self, path):  #, prefiltered_fMRI):
         self.base_folder = path + "ADNI-B/N238rev/"
         fMRI_folder = self.base_folder + 'tseries/sch400/'
-        if prefiltered_fMRI:
-            self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev.mat'
-        else:
-            self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev_nofilt.mat'
+        # if prefiltered_fMRI:
+        #     self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev.mat'
+        # else:
+        self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev_nofilt.mat'
         self.ID_path = fMRI_folder + 'PTID_ADNI3_{}_MPRAGE_IRFSPGR_all.mat'
         self.ABeta_path = self.base_folder + 'abeta_wc_pvc/'
         self.tau_path = self.base_folder + 'tau_igm_pvc/'
@@ -172,9 +172,9 @@ class ADNI_B_N238rev(DataLoader):
 # ================================================================================================================
 class ADNI_B_Alt(DataLoader):
     def __init__(self, new_classification, path=None,
-                 prefiltered_fMRI=False,
+                 # prefiltered_fMRI=False,
                  discard_AD_ABminus=True):
-        self.DL = ADNI_B_N238rev(path, prefiltered_fMRI=prefiltered_fMRI,
+        self.DL = ADNI_B_N238rev(path, #prefiltered_fMRI=prefiltered_fMRI,
                                  discard_AD_ABminus=discard_AD_ABminus)
         self.groups = new_classification
         self.classification = {}
