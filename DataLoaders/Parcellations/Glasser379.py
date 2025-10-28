@@ -9,9 +9,9 @@ import pandas as pd
 from DataLoaders.Parcellations.parcellation import Parcellation
 from DataLoaders.Parcellations.atlas import Atlas
 
-from DataLoaders.WorkBrainFolder import *
-glasserParcellationFolder = WorkBrainDataFolder + "_Parcellations/Glasser360/"
-glasserDataProducedFolder = WorkBrainProducedDataFolder + '_Parcellations/'
+import DataLoaders.WorkBrainFolder as WBF
+glasserParcellationFolder = WBF.WorkBrainDataFolder + "_Parcellations/Glasser360/"
+glasserDataProducedFolder = WBF.WorkBrainProducedDataFolder + '_Parcellations/'
 
 
 class Glasser379(Parcellation):
@@ -69,7 +69,10 @@ class Glasser379(Parcellation):
         return lobes
 
     def get_RSN(self, useLR=False):
-        df = pd.read_csv(glasserDataProducedFolder + f'Glasser360RSN_{"14" if useLR else "7"}_indices.csv')
+        parc_name = self.get_name() + '-' + str(self.get_N())
+        rsn_file = WBF.WorkBrainProducedDataFolder + '_Parcellations/' + \
+                   parc_name + f'_RSN_{"14" if useLR else "7"}_indices.csv'  # if we do NOT use detailed regions
+        df = pd.read_csv(rsn_file)
         records = df.to_dict('records')
         RSNs = {e['RSN Label']:e['Indices'] for e in records}
         RSNs = {rsn:np.array(eval(RSNs[rsn]), dtype=int) for rsn in RSNs}
