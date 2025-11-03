@@ -213,7 +213,7 @@ class ADNI_A(DataLoader):
     def set_basePath(self, path):
         global WholeBrainFolder, base_folder
         WholeBrainFolder = path
-        base_folder = WholeBrainFolder + "Data_Raw/from_Ritter/"
+        base_folder = WholeBrainFolder + "ADNI_A/"
 
     def TR(self):
         return 3.
