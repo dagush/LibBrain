@@ -86,9 +86,11 @@ def indices4RSNs(parcellation):
 # ================================================================
 # Load and save parcellation data
 # ================================================================
-def readReferenceRSN(filePath, roundCoords=True):
+def readReferenceRSN(parcellation, roundCoords=True):
+    parc_name = parcellation.get_name() + '-' + str(parcellation.get_N())
+    file_RSN = WBF.WorkBrainProducedDataFolder + '_Parcellations/' + parc_name + '_RSN.csv'
     res = []
-    with open(filePath, newline='') as csvfile:
+    with open(file_RSN, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             if roundCoords:
