@@ -140,58 +140,6 @@ class Atlas:
         tr = np.dot(idxs, self.affine.T)
         return tr
 
-    # ==================================================================
-    # plotting code
-    # ==================================================================
-    def plot_region(self, id, full_size=True):
-        # select voxels
-        region = self.data == id
-        # and plot everything
-        ax = plt.figure().add_subplot(projection='3d')
-        ax.voxels(region, edgecolor='k')
-        if full_size:
-            ax.set_xlim3d(0, self.data.shape[0])
-            ax.set_ylim3d(0, self.data.shape[1])
-            ax.set_zlim3d(0, self.data.shape[2])
-        plt.show()
-
-    def plot_brain(self, full_size=True):
-        # Plot
-        colors = np.zeros(self.data.shape + (3,))
-        for id in range(1, self.max+1):
-            colors[self.data == id, :] = np.random.rand(3)
-        colors = colors / np.max(colors)
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-        ax.voxels(self.data != 0,
-                  facecolors=colors,
-                  edgecolors=np.clip(2 * colors - 0.5, 0, 1),  # brighter
-                  edgecolor='k')
-        if full_size:
-            ax.set_xlim3d(0, self.data.shape[0])
-            ax.set_ylim3d(0, self.data.shape[1])
-            ax.set_zlim3d(0, self.data.shape[2])
-        plt.show()
-
-    # plot brain slices, from Working with NIfTI images
-    # https://neuraldatascience.io/8-mri/nifti.html
-    def plot_slices(self):
-        import scipy.ndimage as ndi
-
-        fig_rows = 4
-        fig_cols = 4
-        n_subplots = fig_rows * fig_cols
-        n_slice = self.data.shape[0]
-        step_size = n_slice // n_subplots
-        plot_range = n_subplots * step_size
-        start_stop = int((n_slice - plot_range) / 2)
-
-        fig, axs = plt.subplots(fig_rows, fig_cols, figsize=[10, 10])
-        for idx, img in enumerate(range(start_stop, plot_range, step_size)):
-            axs.flat[idx].imshow(ndi.rotate(self.data[img, :, :], 90), cmap='bone')
-            axs.flat[idx].axis('off')
-        plt.tight_layout()
-        plt.show()
-
 
 # ==================================================================
 # debug code: transfer data between parcellations

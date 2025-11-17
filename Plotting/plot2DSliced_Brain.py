@@ -5,7 +5,6 @@
 # =================================================================
 # =================================================================
 import matplotlib.pyplot as plt
-from matplotlib import cm
 
 
 def plotColorView(ax, brain_img, slice_number, frame=None, cmap=plt.cm.coolwarm):
@@ -19,13 +18,13 @@ def plotColorView(ax, brain_img, slice_number, frame=None, cmap=plt.cm.coolwarm)
     ax.set_xlabel(title)
 
 
-def plotBrain(brain_img, title='', rows = 3, cols = 4, frame=None, cmap=plt.cm.coolwarm):
+def plot_slices(brain_img, title='', rows = 3, cols = 4, frame=None, cmap=plt.cm.coolwarm):
     num = brain_img.shape[2]
     fig, axs = plt.subplots(rows,cols,sharex=True, sharey=True)
     for x in range(rows):
         for y in range(cols):
-            pos = int(num * (x*cols + y) / (cols*rows))
-            plotColorView(axs[x,y], brain_img, pos, frame=frame, cmap=cmap)
+            slice_number = int(num * (x*cols + y) / (cols*rows))
+            plotColorView(axs[x,y], brain_img, slice_number, frame=frame, cmap=cmap)
     plt.suptitle(title)
     plt.show()
 

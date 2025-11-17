@@ -263,7 +263,7 @@ class ADNI_A(DataLoader):
                      }}
 
     def get_parcellation(self):
-        return Glasser379.Glasser379()
+        return Glasser379.Glasser379(N=self.N())
 
 
 # ================================================================================================================

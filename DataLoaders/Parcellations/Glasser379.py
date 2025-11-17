@@ -25,6 +25,7 @@ class Glasser379(Parcellation):
         return self.N
 
     def get_CoGs(self):
+        warnings.warn(f'Using get_CoGs gives different coordinates depending on the parcellation size (N={self.N})')
         if self.N == 360:
             # ----------------- coordinates, but only for the 360 version...
             cog = np.loadtxt(glasserParcellationFolder + 'Glasser360_coords.txt')
