@@ -54,7 +54,7 @@ def loadOrCompute(func):
             if verbose: print(f"Computing (@loadOrCompute): {args[-1]}", flush=True)
             value = tuple(a for a in list(args)[:-1])
             result = func(*value)
-            hdf.savemat(args[-1], result)
+            hdf.savemat(args[-1], result, prev_73=True)
         else:
             if verbose: print(f"Loading file (@loadOrCompute): {args[-1]} !!!", flush=True)
             result = cleanDict(hdf.loadmat(args[-1]))
