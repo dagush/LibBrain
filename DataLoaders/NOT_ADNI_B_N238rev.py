@@ -36,9 +36,11 @@ class ADNI_B_N238rev(DataLoader):
                  discard_AD_ABminus=True,
                  # ADNI_version='N238rev',  # N238rev
                  # SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation
+                 use_pvc=True,
                  ):
         # self.SchaeferSize = SchaeferSize
         # self.ADNI_version = ADNI_version
+        self.use_pvc = use_pvc
         self.groups = ['HC','MCI', 'AD']
         if path is not None:
             self.set_basePath(path)  #, prefiltered_fMRI)
@@ -52,6 +54,17 @@ class ADNI_B_N238rev(DataLoader):
             # ---------- discard all subjects with AD and ABeta-, because they are not subjects usually
             #            classified as having with dementia by AD...
             self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013','126_S_6721'])
+
+    def set_basePath(self, path):  #, prefiltered_fMRI):
+        self.base_folder = path + "ADNI-B/N238rev/"
+        fMRI_folder = self.base_folder + 'tseries/sch400/'
+        # if prefiltered_fMRI:
+        #     self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev.mat'
+        # else:
+        self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev_nofilt.mat'
+        self.ID_path = fMRI_folder + 'PTID_ADNI3_{}_MPRAGE_IRFSPGR_all.mat'
+        self.ABeta_path = self.base_folder + 'abeta_wc' + ('_pvc/' if self.use_pvc else '/')
+        self.tau_path = self.base_folder + 'tau_igm' + ('_pvc/' if self.use_pvc else '/')
 
     # ---------------- load fMRI data
     def __loadSubjects_fMRI(self, IDs, fMRI_path):
@@ -105,17 +118,6 @@ class ADNI_B_N238rev(DataLoader):
     def name(self):
         return 'ADNI_B_N238rev'
 
-    def set_basePath(self, path):  #, prefiltered_fMRI):
-        self.base_folder = path + "ADNI-B/N238rev/"
-        fMRI_folder = self.base_folder + 'tseries/sch400/'
-        # if prefiltered_fMRI:
-        #     self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev.mat'
-        # else:
-        self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev_nofilt.mat'
-        self.ID_path = fMRI_folder + 'PTID_ADNI3_{}_MPRAGE_IRFSPGR_all.mat'
-        self.ABeta_path = self.base_folder + 'abeta_wc_pvc/'
-        self.tau_path = self.base_folder + 'tau_igm_pvc/'
-
     def TR(self):
         return 3  # Repetition Time (seconds)
 
@@ -157,85 +159,6 @@ class ADNI_B_N238rev(DataLoader):
     def get_parcellation(self):
         return Schaefer2018.Schaefer2018(N=400, normalization=2, RSN=7)  # use normalization of 2mm, 7 RSNs
 
-
-# ================================================================================================================
-# ================================================================================================================
-# Alternate Classification DataLoader
-# This allows different classification schemes, such as
-#       ['HC', 'AD']  -> all subjects with labels HC and AD, irrespectively of their ABeta status
-#       ['HC', 'MCI(AB-)', 'MCI(AB+)', 'AD']  -> Same as before, with the MCI subjects that are either AB- or AB+
-#       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD']
-#       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD(AB+)']
-# Observe the last two should be the same, but with all the AD or only those with an AB+ status
-# Note: at this moment, this class is intimately related to the ADNI_B_N238rev DataLoader
-# ================================================================================================================
-# ================================================================================================================
-class ADNI_B_Alt(DataLoader):
-    def __init__(self, new_classification, path=None,
-                 # prefiltered_fMRI=False,
-                 discard_AD_ABminus=True):
-        self.DL = ADNI_B_N238rev(path, #prefiltered_fMRI=prefiltered_fMRI,
-                                 discard_AD_ABminus=discard_AD_ABminus)
-        self.groups = new_classification
-        self.classification = {}
-        orig_classification = self.DL.get_classification()
-
-        # Regex: group + optional (BURDEN with optional + or -)
-        pattern = re.compile(r"^([A-Z]+)(?:\(([A-Z]+)([+-]?)\))?$")
-
-        for subject in orig_classification:
-            subject_group = orig_classification[subject]
-            for group in new_classification:
-                if subject_group in group:  # we discard the subject if it is NOT in any set
-                    m = pattern.match(group)
-                    if m:
-                        group_id, burden, sign = m.groups()
-                        if burden is None:
-                            self.classification[subject] = group
-                        else:
-                            data = self.get_subjectData(subject)[subject]
-                            # labels are in the Abeta_pvc column, where pvc = partial volume correction.
-                            # 1=Abeta+, 0=Abeta-;   threshold is >24CL.
-                            # Subjects without ABeta classification are discarded
-                            if ((data['meta']['ABeta_pvc'] == 0 and sign=='-')  # ABeta-
-                                    or
-                                (data['meta']['ABeta_pvc'] == 1 and sign=='+')):  # ABeta+
-                                self.classification[subject] = group
-
-        print(self.get_subject_count())
-
-    def name(self):
-        return 'ADNI_B_N238rev_alt'
-
-    def get_groupLabels(self):
-        return self.groups
-
-    def get_classification(self):
-        return self.classification
-
-    def get_subjectData(self, subjectID):
-        return self.DL.get_subjectData(subjectID)
-
-    def get_parcellation(self):
-        return self.DL.get_parcellation()
-
-    def TR(self):
-        return self.DL.TR()
-
-    def N(self):
-        return self.DL.N()
-
-
-# ================================================================================================================
-print('_Data_Raw loading done!')
-# =========================  debug
-if __name__ == '__main__':
-    # DL = ADNI_B_N238rev()
-    DL = ADNI_B_Alt(['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD(AB+)'])
-    sujes = DL.get_classification()
-    gCtrl = DL.get_groupSubjects('HC')
-    s1 = DL.get_subjectData('002_S_6007')
-    print('done! ;-)')
 # ================================================================================================================
 # ================================================================================================================
 # ================================================================================================================EOF
