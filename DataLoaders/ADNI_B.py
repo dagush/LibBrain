@@ -56,6 +56,18 @@ class ADNI_B(DataLoader):
             self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013','126_S_6721'])
         print(self.get_subject_count())
 
+    def set_basePath(self, path):
+        self.base_238_folder = path + "ADNI-B/N238rev/"
+
+    def _loadAllData(self):
+        # ---- load common metadata
+        meta_data_path = self.base_238_folder + 'ADNI3_N238rev_with_ABETA_Status.xlsx'
+        self.meta_information = pd.read_excel(meta_data_path)
+        # ---- load site information
+        site_path = '/'.join(self.base_238_folder.split('/')[:-2])+'/'
+        self.site_information = pd.read_csv(site_path + 'sites_ADNI3_ABeta_N304.csv')
+        return
+
     def TR(self):
         return 3  # Repetition Time (seconds)
 
@@ -93,9 +105,21 @@ class ADNI_B(DataLoader):
         meta = self.meta_information[self.meta_information['PTID'] == subjectID].to_dict('records')[0]
         res= {subjectID: {'timeseries': ts,
                           'meta': meta,}}
+        # ---- ABeta and Tau, when available
         if self.SchaeferSize == 400:  # add the burden info
-            res |= {'ABeta': self.burdens[group][subjectID]['ABeta'],
-                    'Tau': self.burdens[group][subjectID]['Tau'],}
+            res[subjectID] |= {'ABeta': self.burdens[group][subjectID]['ABeta'],
+                               'Tau': self.burdens[group][subjectID]['Tau'],}
+        # ---- site information
+        # Quick confirmation checks:
+        # print(self.site_information['site'].unique())  # Print all sites
+        # print(self.site_information[self.site_information['Measure']=='MRI']['site'].unique())  # Print all MRI sites
+        # print(self.site_information[self.site_information['Measure']=='Beta']['site'].unique())  # Print all ABeta sites
+        # print(self.site_information[self.site_information['Measure']=='Tau']['site'].unique())  # Print all Tau sites
+        subj_site = self.site_information[self.site_information['PTID'] == subjectID]
+        site_info = {}
+        for _, row in subj_site.iterrows():
+            site_info[row['Measure']+'_site'] = row['site']
+        res[subjectID]['meta'] |= site_info
         return res
 
     def get_parcellation(self):
@@ -114,9 +138,9 @@ class ADNI_B_N193_no_filt(ADNI_B):
                  use_pvc = True,
                  ):
         super().__init__(path=None,
-                         discard_AD_ABminus=True,
-                         SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation / 1000
-                         use_pvc = True,)
+                         discard_AD_ABminus=discard_AD_ABminus,
+                         SchaeferSize=SchaeferSize,  # by default, let's use the Schaefer2018 400 parcellation / 1000
+                         use_pvc = use_pvc,)
         # self.SchaeferSize = SchaeferSize
         # self.use_pvc = use_pvc
         # self.groups = ['HC','MCI', 'AD']
@@ -134,12 +158,12 @@ class ADNI_B_N193_no_filt(ADNI_B):
         #     self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013'])  #,'126_S_6721'])
 
     def set_basePath(self, path):  #, prefiltered_fMRI):
+        super().set_basePath(path)
         # --------- timeseries
         self.base_193_folder = path + "ADNI-B/N193_no_filt/"
         fMRI_folder = self.base_193_folder + f'sch{self.SchaeferSize}/'
         self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_batches{}_' + f'sch{self.SchaeferSize}_matching_QC_COMBINED.mat'
         self.ID_path = fMRI_folder + 'combined_PTIDS_ADNI3_{}_MPRAGE.mat'
-        self.base_238_folder = path + "ADNI-B/N238rev/"
         if self.SchaeferSize == 400:
             # --------- ABeta and Tau
             self.ABeta_path = self.base_238_folder + 'abeta_wc' + '_pvc/' if self.use_pvc else '/'
@@ -194,8 +218,9 @@ class ADNI_B_N193_no_filt(ADNI_B):
             self.timeseries[task] = self._loadSubjects_fMRI(IDs, fMRI_task_path, task)
             self.burdens[task] = self._loadSubjects_burden(IDs)
             print(f'----------- done {task} --------------')
-        meta_data_path = self.base_238_folder + 'ADNI3_N238rev_with_ABETA_Status.xlsx'
-        self.meta_information = pd.read_excel(meta_data_path)
+        # meta_data_path = self.base_238_folder + 'ADNI3_N238rev_with_ABETA_Status.xlsx'
+        # self.meta_information = pd.read_excel(meta_data_path)
+        super()._loadAllData()
         print(f'----------- done loading All --------------')
 
     def name(self):
@@ -216,9 +241,9 @@ class ADNI_B_N238rev(ADNI_B):
                  use_pvc=True,
                  ):
         super().__init__(path=None,
-                         discard_AD_ABminus=True,
+                         discard_AD_ABminus=discard_AD_ABminus,
                          SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation / 1000
-                         use_pvc = True,)
+                         use_pvc=use_pvc,)
         # # self.SchaeferSize = SchaeferSize
         # # self.ADNI_version = ADNI_version
         # self.use_pvc = use_pvc
@@ -237,15 +262,15 @@ class ADNI_B_N238rev(ADNI_B):
         #     self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013','126_S_6721'])
 
     def set_basePath(self, path):  #, prefiltered_fMRI):
-        self.base_folder = path + "ADNI-B/N238rev/"
-        fMRI_folder = self.base_folder + 'tseries/sch400/'
+        super().set_basePath(path)
+        fMRI_folder = self.base_238_folder + 'tseries/sch400/'
         # if prefiltered_fMRI:
         #     self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev.mat'
         # else:
         self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev_nofilt.mat'
         self.ID_path = fMRI_folder + 'PTID_ADNI3_{}_MPRAGE_IRFSPGR_all.mat'
-        self.ABeta_path = self.base_folder + 'abeta_wc' + ('_pvc/' if self.use_pvc else '/')
-        self.tau_path = self.base_folder + 'tau_igm' + ('_pvc/' if self.use_pvc else '/')
+        self.ABeta_path = self.base_238_folder + 'abeta_wc' + ('_pvc/' if self.use_pvc else '/')
+        self.tau_path = self.base_238_folder + 'tau_igm' + ('_pvc/' if self.use_pvc else '/')
 
     # ---------------- load fMRI data
     def _loadSubjects_fMRI(self, IDs, fMRI_path):
@@ -291,8 +316,7 @@ class ADNI_B_N238rev(ADNI_B):
             self.timeseries[task] = self._loadSubjects_fMRI(IDs, fMRI_task_path)
             self.burdens[task] = self._loadSubjects_burden(IDs)
             print(f'----------- done {task} --------------')
-        meta_data_path = self.base_folder + 'ADNI3_N238rev_with_ABETA_Status.xlsx'
-        self.meta_information = pd.read_excel(meta_data_path)
+        super()._loadAllData()
         print(f'----------- done loading All --------------')
 
     def name(self):
