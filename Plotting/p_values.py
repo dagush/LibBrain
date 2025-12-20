@@ -214,7 +214,8 @@ def padEqualLengthDicts(tests):
 
 def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
                                   columnLables=None, graphLabel='', pairs=None,
-                                  test='Mann-Whitney', comparisons_correction='BH'):
+                                  test='Mann-Whitney', comparisons_correction='BH',
+                                  show_N=True):
     printAveragesAndStd(tests)
     if columnLables is None:
         columnLables = tests.keys()
@@ -222,6 +223,9 @@ def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
         tests = padEqualLengthDicts(tests)
     df = pd.DataFrame(tests, columns=columnLables)
     sns.boxplot(data=df, order=columnLables, ax=ax)
+    if show_N:
+        column_names = [c+f'\n(N={len(tests[c])})' for c in columnLables]
+        plt.xticks(range(len(columnLables)), column_names)
     # sns.catplot(data=df, kind="box")
     if pairs == None:
         pairs = list(combinations(columnLables, 2))
@@ -239,11 +243,13 @@ def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
 
 def plotComparisonAcrossLabels2(tests, custom_test=None,
                                 columnLables=None, graphLabel='', pairs=None,
-                                test='Mann-Whitney', comparisons_correction='BH'):
+                                test='Mann-Whitney', comparisons_correction='BH',
+                                show_N=True):
     fig, ax = plt.subplots()
     plotComparisonAcrossLabels2Ax(ax, tests, custom_test=custom_test,
                                   columnLables=columnLables, graphLabel=graphLabel, pairs=pairs,
-                                  test=test, comparisons_correction=comparisons_correction)
+                                  test=test, comparisons_correction=comparisons_correction,
+                                  show_N=show_N)
     plt.show()
 
 
