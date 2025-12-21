@@ -298,9 +298,10 @@ if __name__ == '__main__':
 
         return pd.DataFrame(rows)
 
-
+    # -------------------------------
     # Create dummy long dataframe
     df_long_original = make_dummy_long_dataframe()
+    # Now, we should test conversions between wide and long formats, and back...
 
     print("done!")
 # --------------------------------------------------------------------------------------

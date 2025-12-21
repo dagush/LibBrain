@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------------------
-# Generic utilities to harmonize DataFrames with subjects comming from diferent sites
+# Generic utilities to harmonize DataFrames with subjects coming from different sites
 #
 # By Gustavo Patow
 # --------------------------------------------------------------------------------------
