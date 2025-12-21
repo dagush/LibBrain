@@ -219,13 +219,13 @@ def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
     printAveragesAndStd(tests)
     if columnLables is None:
         columnLables = tests.keys()
+    if show_N:  # we need to do this BEFORE the padding for equal length!
+        column_names = [c+f'\n(N={len(tests[c])})' for c in columnLables]
+        plt.xticks(range(len(columnLables)), column_names)
     if isinstance(tests, dict):
         tests = padEqualLengthDicts(tests)
     df = pd.DataFrame(tests, columns=columnLables)
     sns.boxplot(data=df, order=columnLables, ax=ax)
-    if show_N:
-        column_names = [c+f'\n(N={len(tests[c])})' for c in columnLables]
-        plt.xticks(range(len(columnLables)), column_names)
     # sns.catplot(data=df, kind="box")
     if pairs == None:
         pairs = list(combinations(columnLables, 2))
