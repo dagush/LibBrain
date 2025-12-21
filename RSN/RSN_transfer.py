@@ -86,11 +86,10 @@ def indices4RSNs(parcellation):
 # ================================================================
 # Load and save parcellation data
 # ================================================================
-def readReferenceRSN(parcellation, roundCoords=True):
-    parc_name = parcellation.get_name() + '-' + str(parcellation.get_N())
-    file_RSN = WBF.WorkBrainProducedDataFolder + '_Parcellations/' + parc_name + '_RSN.csv'
+def readReferenceRSN_coords(filePath,
+                            roundCoords=True):
     res = []
-    with open(file_RSN, newline='') as csvfile:
+    with open(filePath, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             if roundCoords:
@@ -174,9 +173,8 @@ def build_RSN_for_parcellation(
     inFileNameRef = f'Schaefer2018/MNI/Centroid_coordinates/Schaefer2018_{numNodes}Parcels_7Networks_order_FSLMNI152_1mm.Centroid_RAS.csv'
     # inFileNameTarget = 'Glasser360/Glasser360_coords.txt'
 
-
     # Read all reference values, i.e., from Yeo's Schaefer2018 RSN labels
-    dataRef = readReferenceRSN(inPath+inFileNameRef)
+    dataRef = readReferenceRSN_coords(inPath+inFileNameRef)
     print(f'we have {len(dataRef)} elements')
     if plotNodes:
         coords_ref = [reg[2] for reg in dataRef]
