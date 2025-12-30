@@ -10,6 +10,7 @@
 # Code by Gustavo Patow
 # ================================================================================================================
 # ================================================================================================================
+import os.path
 import pandas as pd
 import numpy as np
 import nibabel as nib
@@ -76,35 +77,51 @@ class ADNI_E(DataLoader):
              }}
         """
         file = self.fMRI_path.format(subjectID,subjectID)
-        brain_vols = nib.load(file)
-        # shape = brain_vols.header.get_data_shape()
-        # dtype = brain_vols.header.get_data_dtype()
-        fMRI = brain_vols.get_fdata()
+        if os.path.isfile(file):
+            brain_vols = nib.load(file)
+            # shape = brain_vols.header.get_data_shape()
+            # dtype = brain_vols.header.get_data_dtype()
+            fMRI = brain_vols.get_fdata()
 
-        file = self.avg_path.format(subjectID,subjectID)
-        brain_avg = nib.load(file)
-        avg = brain_avg.get_fdata()
+            file = self.avg_path.format(subjectID, subjectID)
+            brain_avg = nib.load(file)
+            avg = brain_avg.get_fdata()
 
-        file = self.avg_path.format(subjectID,subjectID)
-        brain_t1 = nib.load(file)
-        t1 = brain_avg.get_fdata()
+            file = self.avg_path.format(subjectID, subjectID)  # in this case they are the same as avg!
+            brain_t1 = nib.load(file)
+            t1 = brain_avg.get_fdata()
 
-        file = self.aal_path.format(subjectID,subjectID)
-        aal_atlas = Atlas(file)
+            file = self.aal_path.format(subjectID,subjectID)
+            aal_atlas = Atlas(file)
 
-        if not (brain_vols.affine == brain_avg.affine).any() or \
-           not (brain_avg.affine == brain_t1.affine).any() or \
-           not (brain_t1.affine == brain_vols.affine).any():  # OK,  I know, no need for the 3 checks...
-           raise Exception('Affine matrices are different!')
+            if  not (brain_vols.affine == brain_avg.affine).any() or \
+                not (brain_avg.affine == brain_t1.affine).any() or \
+                not (brain_t1.affine == brain_vols.affine).any():  # OK,  I know, no need for the 3 checks...
+                raise Exception('Affine matrices are different!')
+            affine = brain_t1.affine
+        else:  # at least it will not burn when doing local tests...
+            fMRI = None
+            avg = None
+            t1 = None
+            aal_atlas = None
+            affine = None
 
+        # -------- done, now create the return subject data
         print(f'Loaded {subjectID}')
-        return {
+        s_metadata = self.data[self.data['ID'] == subjectID]
+        s_data = {
             'timeseries': fMRI,
             'avg': avg,
             't1': t1,
-            'affine': brain_t1.affine,
+            'affine': affine,
             'atlas': aal_atlas,
+            'meta': {'site': subjectID[:3],
+                     'diag': s_metadata['DIAG'].iloc[0],
+                     'sex': s_metadata['SEX'].iloc[0],
+                     'age': s_metadata['AGE'].iloc[0],
+                     },
         }
+        return s_data
 
     def get_parcellation(self):
         return aal(version=1)
@@ -131,7 +148,8 @@ if __name__ == '__main__':
     print(f'Group labels: {DL.get_groupLabels()}')
     gMCI = DL.get_groupSubjects('all')
     s1 = DL.get_subjectData('002_S_0413')
-    s2 = DL.get_subjectData('002_S_1155')
+    s2 = DL.get_subjectData('003_S_1122')
+    s3 = DL.get_subjectData('018_S_2133')
 
     print(check_first_volumes(s1))
     print(check_first_volumes(s2))
