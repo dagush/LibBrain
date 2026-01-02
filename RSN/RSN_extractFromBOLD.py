@@ -27,35 +27,17 @@ def simplifyIndicesFile(rsnIndices, subset):
     return {k: rsnIndices[k] for k in subset}
 
 
-def extract_subjectfMRI_RSN(BOLD, namesAndIDs):
+def extract_subjectfMRI_RSN(data_loader, subject, namesAndIDs):
+    all_data = data_loader.get_subjectData(subject)
+    fMRI_signal = all_data[subject]['timeseries']
     allNames = list(set(namesAndIDs))  # no repeated entries
     res = {}
     for name in allNames:
         ids = eval(namesAndIDs[name])
         print(f'for {name} we have {len(ids)} regions')
-        res[name] = BOLD[ids]
+        res[name] = fMRI_signal[ids]
     print(f'We have {sum([res[reg].shape[0] for reg in res])} regions in total.')
     return res
-
-
-def extract_GroupfMRI_RSN(BOLDs, rsn):
-    res = {}
-    for s in BOLDs:
-        res[s] = extract_subjectfMRI_RSN(BOLDs[s], rsn)
-    return res
-
-
-def process_group_RSN(data_loader, group, rsn, useLR,
-                      save_result, sufix, RSN_save_folder):
-    # -------- get all fMRIs for a given group
-    all_fMRI = data_loader.get_fullGroup_data(group)
-    fMRIs = {s: all_fMRI[s]['timeseries'] for s in all_fMRI}
-    RSNBOLDs = extract_GroupfMRI_RSN(fMRIs, rsn)
-    if save_result:
-        fileName = RSN_save_folder + f'/RSN-{"14" if useLR else "7"}_{group}{sufix}.mat'
-        saveRSN_Matlab(RSNBOLDs, fileName, saveSufix=sufix)
-        print(f'\nSaved to: {fileName}\n')
-    return RSNBOLDs
 
 
 # -------------------------------------------------------------------------
@@ -74,14 +56,13 @@ def fromBOLD(data_loader,
 
     # ------- For the full RSN test
     print('-------------- Processing full RSN set')
-    rsn = transfer.read_RSN_data(target_parc)
+    RSNs = transfer.read_RSN_data(target_parc)
     # --------------------------------------------------
-    # Process fMRI for all subjects, in all cohorts
+    # Process fMRI for all subjects
     # --------------------------------------------------
     res = {}
-    for group in data_loader.get_groupLabels():
-        res[group] = process_group_RSN(data_loader, group, rsn, useLR=useLR,
-                                       save_result=save_result, sufix=fileSufix, RSN_save_folder=RSN_save_folder)
+    for subject in data_loader.get_classification():
+        res[subject] = extract_subjectfMRI_RSN(data_loader, subject, RSNs)
 
     # ------- For the detailed Default Mode Network test
     # do_detailed_DMN_test = False
@@ -93,6 +74,11 @@ def fromBOLD(data_loader,
     #     fileSufix = '-Detail-Default'
     #     for group in DL.get_groupLabels():
     #         process_group(group, rsn, useLR=useLR, sufix=fileSufix)
+
+    if save_result:
+        fileName = RSN_save_folder + f'/RSN-{"14" if useLR else "7"}_{group}{fileSufix}.mat'
+        saveRSN_Matlab(res, fileName, saveSufix=fileSufix)
+        print(f'\nSaved to: {fileName}\n')
 
     return res
 
