@@ -21,12 +21,18 @@ import numpy as np
 # ----------------------------
 # Core transformation logic
 # ----------------------------
+def as_dict_iter(data, nested):
+    if nested:
+        yield from data.items()   # (outer_key, inner_dict)
+    else:
+        yield None, data          # single “anonymous” dict
 
 def observables_to_long_dataframe(
     entity_id: str,
     observables: Dict[str, Union[float, np.ndarray]],
     metadata: Optional[Dict[str, Union[str, int, float]]] = None,
     index_name: str = "region",
+    use_RSN: bool = False,
 ) -> pd.DataFrame:
     """
     Convert a dictionary of observables into a long-format DataFrame.
@@ -47,26 +53,39 @@ def observables_to_long_dataframe(
     pd.DataFrame
         Long-format DataFrame.
     """
-    rows = []
-
-    for obs_name, value in observables.items():
-        if np.isscalar(value):
-            rows.append({
-                "id": entity_id,
-                "observable": obs_name,
-                index_name: None,
-                "value": value
-            })
-        else:
-            for idx, v in enumerate(value):
+    def process_single_row(obs, RSN):
+        rows = []
+        for obs_name, value in obs.items():
+            if np.isscalar(value):
                 rows.append({
                     "id": entity_id,
                     "observable": obs_name,
-                    index_name: idx,
-                    "value": v
+                    index_name: None,
+                    "value": value,
+                    "RSN": RSN,
                 })
+            else:
+                for idx, v in enumerate(value):
+                    rows.append({
+                        "id": entity_id,
+                        "observable": obs_name,
+                        index_name: idx,
+                        "value": v,
+                        "RSN": RSN,
+                    })
+        return rows
 
-    df = pd.DataFrame(rows)
+    rows = [
+        process_single_row(row, key)
+        for key, row in as_dict_iter(observables, use_RSN)
+    ] if use_RSN else process_single_row(observables, 'Whole-Brain')
+
+    all_rows = [
+        x
+        for row in rows
+        for x in row
+    ]
+    df = pd.DataFrame(all_rows)
 
     if metadata:
         for key, val in metadata.items():
@@ -84,6 +103,7 @@ def build_long_dataframe_from_entities(
     observable_loader: Callable[[str], Dict[str, Union[float, np.ndarray]]],
     metadata_loader: Optional[Callable[[str], Dict[str, Union[str, int, float]]]] = None,
     index_name: str = "region",
+    use_RSN: bool = False,
 ) -> pd.DataFrame:
     """
     Build a long-format DataFrame from multiple entities.
@@ -113,7 +133,8 @@ def build_long_dataframe_from_entities(
             entity_id=eid,
             observables=observables,
             metadata=metadata,
-            index_name=index_name
+            index_name=index_name,
+            use_RSN=use_RSN,
         )
         dfs.append(df)
 
