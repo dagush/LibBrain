@@ -31,9 +31,9 @@ def observables_to_long_dataframe(
     entity_id: str,
     observables: Dict[str, Union[float, np.ndarray]],
     metadata: Optional[Dict[str, Union[str, int, float]]] = None,
-    index_name: str = "region",
+    index_name: str = "parcel",
     use_RSN: bool = False,
-) -> pd.DataFrame:
+  ) -> pd.DataFrame:
     """
     Convert a dictionary of observables into a long-format DataFrame.
 
@@ -46,7 +46,7 @@ def observables_to_long_dataframe(
     metadata : dict, optional
         Additional metadata to attach to every row.
     index_name : str
-        Name of the index dimension (e.g., region, channel).
+        Name of the index dimension (e.g., parcel, channel).
 
     Returns
     -------
@@ -66,6 +66,7 @@ def observables_to_long_dataframe(
                 })
             else:
                 for idx, v in enumerate(value):
+                    # TODO: correct the idx number in the case of RSNs to have the right global parcel number
                     rows.append({
                         "id": entity_id,
                         "observable": obs_name,
@@ -80,11 +81,14 @@ def observables_to_long_dataframe(
         for key, row in as_dict_iter(observables, use_RSN)
     ] if use_RSN else process_single_row(observables, 'Whole-Brain')
 
-    all_rows = [
-        x
-        for row in rows
-        for x in row
-    ]
+    if use_RSN:
+        all_rows = [
+            x
+            for row in rows
+            for x in row
+        ]
+    else:
+        all_rows = rows
     df = pd.DataFrame(all_rows)
 
     if metadata:
@@ -102,9 +106,9 @@ def build_long_dataframe_from_entities(
     entity_ids: Iterable[str],
     observable_loader: Callable[[str], Dict[str, Union[float, np.ndarray]]],
     metadata_loader: Optional[Callable[[str], Dict[str, Union[str, int, float]]]] = None,
-    index_name: str = "region",
+    index_name: str = "parcel",
     use_RSN: bool = False,
-) -> pd.DataFrame:
+  ) -> pd.DataFrame:
     """
     Build a long-format DataFrame from multiple entities.
 
@@ -123,6 +127,11 @@ def build_long_dataframe_from_entities(
     -------
     pd.DataFrame
     """
+
+    # TODO: To have the right numbering of the parcels for the "region" case (i.e., RSNs), here
+    # we should load the RSN indexes file, and convert the parcel number to the correct index
+    # in the parcellation we are using...
+
     dfs = []
 
     for eid in entity_ids:
@@ -146,16 +155,23 @@ def build_long_dataframe_from_entities(
 # Format conversions
 # ----------------------------
 
-def long_to_wide(df: pd.DataFrame, label: str, metadata: Iterable[str]) -> pd.DataFrame:
+def long_to_wide(
+        df: pd.DataFrame,
+        label: str,
+        metadata: list[str],
+        id_col: str = 'id',
+        columns_name: str = "parcel",
+        values_name: str = "value",
+        observable_col: str = "observable",
+    ) -> pd.DataFrame:
     """
     Pivot a long-format dataframe to wide format, for a given observable (should be
     generalized for all observables in the dataframe)
     """
-    # widened = df.pivot(index=['ID', 'Group'], columns='region', values=label).reset_index()
-    widened = df[df["observable"]==label].pivot_table(
-        index=["id"] + metadata,
-        columns=["region"],
-        values="value"
+    widened = df[df[observable_col]==label].pivot_table(
+        index=[id_col] + metadata,
+        columns=[columns_name],
+        values=values_name
     ).reset_index()
     return widened
 
@@ -164,13 +180,13 @@ def wide_to_long(
     df: pd.DataFrame,
     # -------------- input cols
     entity_col: str = "id",
-    index_col: str = "region",
+    index_col: str = "parcel",
     metadata: Iterable[str] = [],
     # -------------- output cols
     observable_col: str = "observable",
     obs_name: str = "observable",
     value_col: str = "value",
-) -> pd.DataFrame:
+  ) -> pd.DataFrame:
     """
     Convert a wide-format DataFrame into a long-format DataFrame,
     supporting both global and indexed (vector) observables, for
@@ -190,7 +206,7 @@ def wide_to_long(
     # -------------- input cols
     entity_col: str = "id",
         Name of entity identifier column.
-    index_col: str = "region",
+    index_col: str = "parcel",
         Name of index identifier column.
     metadata: Iterable[str] = [],
         Additional metadata to attach to every row.
@@ -240,7 +256,10 @@ def wide_to_long(
 # IO
 # ----------------------------
 
-def save_dataframe(df: pd.DataFrame, path: Union[str, Path]) -> None:
+def save_dataframe(
+        df: pd.DataFrame,
+        path: Union[str, Path]
+  ) -> None:
     """
     Save DataFrame to disk.
     """

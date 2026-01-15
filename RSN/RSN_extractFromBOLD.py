@@ -76,7 +76,7 @@ def fromBOLD(data_loader,
     #         process_group(group, rsn, useLR=useLR, sufix=fileSufix)
 
     if save_result:
-        fileName = RSN_save_folder + f'/RSN-{"14" if useLR else "7"}_{group}{fileSufix}.mat'
+        fileName = RSN_save_folder + f'/RSN-{"14" if useLR else "7"}_{fileSufix}.mat'
         saveRSN_Matlab(res, fileName, saveSufix=fileSufix)
         print(f'\nSaved to: {fileName}\n')
 
