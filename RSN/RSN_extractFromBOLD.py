@@ -80,7 +80,7 @@ def fromBOLD(data_loader,
         saveRSN_Matlab(res, fileName, saveSufix=fileSufix)
         print(f'\nSaved to: {fileName}\n')
 
-    return res
+    return res, RSNs
 
 
 # --------------------------------------------------
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     # Groups: HC, MCI, AD
     # Glasser360 -> DorsAttn: 47, SalVentAttn: 47, Cont: 46, Limbic: 23, Default: 85, SomMot: 55, Vis: 57
     DL = ADNI_A.ADNI_A()
-    res = fromBOLD(DL)
+    res, rsn_data = fromBOLD(DL)
 
 # -------------------------------------------------------------------------
 # -------------------------------------------------------------------------
