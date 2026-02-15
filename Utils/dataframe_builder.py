@@ -33,7 +33,8 @@ def observables_to_long_dataframe(
     metadata: Optional[Dict[str, Union[str, int, float]]] = None,
     index_name: str = "parcel",
     use_RSN: bool = False,
-  ) -> pd.DataFrame:
+    RSN_data: Optional[Dict[str, np.ndarray]] = None,
+) -> pd.DataFrame:
     """
     Convert a dictionary of observables into a long-format DataFrame.
 
@@ -65,8 +66,8 @@ def observables_to_long_dataframe(
                     "RSN": RSN,
                 })
             else:
-                for idx, v in enumerate(value):
-                    # TODO: correct the idx number in the case of RSNs to have the right global parcel number
+                parcels = eval(RSN_data[RSN])
+                for idx, v in zip(parcels, value):
                     rows.append({
                         "id": entity_id,
                         "observable": obs_name,
@@ -90,6 +91,8 @@ def observables_to_long_dataframe(
     else:
         all_rows = rows
     df = pd.DataFrame(all_rows)
+    df.sort_values(by=["id", "observable", index_name], inplace=True)
+    df.reset_index(drop=True, inplace=True)
 
     if metadata:
         for key, val in metadata.items():
@@ -108,6 +111,7 @@ def build_long_dataframe_from_entities(
     metadata_loader: Optional[Callable[[str], Dict[str, Union[str, int, float]]]] = None,
     index_name: str = "parcel",
     use_RSN: bool = False,
+    RSN_data: Optional[Dict[str, np.ndarray]] = None,
   ) -> pd.DataFrame:
     """
     Build a long-format DataFrame from multiple entities.
@@ -128,9 +132,8 @@ def build_long_dataframe_from_entities(
     pd.DataFrame
     """
 
-    # TODO: To have the right numbering of the parcels for the "region" case (i.e., RSNs), here
-    # we should load the RSN indexes file, and convert the parcel number to the correct index
-    # in the parcellation we are using...
+    if use_RSN and RSN_data is None:
+        raise TypeError("RSN_data must be provided.")
 
     dfs = []
 
@@ -144,6 +147,7 @@ def build_long_dataframe_from_entities(
             metadata=metadata,
             index_name=index_name,
             use_RSN=use_RSN,
+            RSN_data=RSN_data,
         )
         dfs.append(df)
 
