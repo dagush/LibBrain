@@ -115,9 +115,10 @@ class ADNI_B(DataLoader):
         # ---- GMV information
         if self.SchaeferSize == 400:  # add the burden info
             GMV_subj_id = 'sub-' + subjectID.split('_')[0] + '-' + subjectID.split('_')[2]
-            subj_GMV = self.GMV.loc[self.GMV['subject'] == GMV_subj_id]
-            # Data seems to be in the "canonical" order as the rest of the files here...
-            res[subjectID] |= {'GMV': subj_GMV.to_numpy()[0,2:]}
+            if (self.GMV['subject'] == GMV_subj_id).any():
+                subj_GMV = self.GMV.loc[self.GMV['subject'] == GMV_subj_id]
+                # Data seems to be in the "canonical" order as the rest of the files here...
+                res[subjectID] |= {'GMV': subj_GMV.to_numpy()[0,2:]}
         # ---- site information
         # Quick confirmation checks:
         # print(self.site_information['site'].unique())  # Print all sites
