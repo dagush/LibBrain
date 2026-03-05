@@ -66,6 +66,9 @@ class ADNI_B(DataLoader):
         # ---- load site information
         site_path = '/'.join(self.base_238_folder.split('/')[:-2])+'/'
         self.site_information = pd.read_csv(site_path + 'sites_ADNI3_ABeta_N304.csv')
+        # ---- load GMV info
+        site_GMV_path = self.base_238_folder + 'GMV/ADNI_GMV_schaefer400_wide.csv'
+        self.GMV = pd.read_csv(site_GMV_path)
         return
 
     def TR(self):
@@ -109,6 +112,12 @@ class ADNI_B(DataLoader):
         if self.SchaeferSize == 400:  # add the burden info
             res[subjectID] |= {'ABeta': self.burdens[group][subjectID]['ABeta'],
                                'Tau': self.burdens[group][subjectID]['Tau'],}
+        # ---- GMV information
+        if self.SchaeferSize == 400:  # add the burden info
+            GMV_subj_id = 'sub-' + subjectID.split('_')[0] + '-' + subjectID.split('_')[2]
+            subj_GMV = self.GMV.loc[self.GMV['subject'] == GMV_subj_id]
+            # Data seems to be in the "canonical" order as the rest of the files here...
+            res[subjectID] |= {'GMV': subj_GMV.to_numpy()[0,2:]}
         # ---- site information
         # Quick confirmation checks:
         # print(self.site_information['site'].unique())  # Print all sites
