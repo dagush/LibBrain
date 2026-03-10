@@ -1,5 +1,8 @@
 # =======================================================================
 # Compact Generic BOLD Simulator
+#
+# By Albert Juncà
+# adapted by Gustavo Patow
 # =======================================================================
 import math
 import numpy as np

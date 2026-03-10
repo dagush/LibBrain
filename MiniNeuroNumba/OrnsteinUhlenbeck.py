@@ -28,11 +28,13 @@
 # used to derive the linearised covariance structure of BOLD-like signals.
 #
 # References:
-#   Ornstein, L.S. & Uhlenbeck, G.E. (1930). On the theory of Brownian motion.
-#       Physical Review, 36(5), 823–841.
-#   Deco, G., Ponce-Alvarez, A., Mantini, D., Romani, G.L., Hagmann, P.,
-#       & Corbetta, M. (2013). Resting-state human brain dynamics are best
-#       described by 1/f noise. PLOS Computational Biology, 9(2), e1002666.
+#   [Uhlenbeck_Ornstein_1930] G.E. Uhlenbeck, L.S. Ornstein
+#       "On the Theory of the Brownian Motion"
+#       Phys. Rev. 36, 823 (1930)
+#
+#   [Risken_1996] H. Risken
+#       "The Fokker-Planck Equation: Methods of Solution and Applications"
+#       Springer, 2nd ed., 1996
 #
 # ==========================================================================
 # ==========================================================================
@@ -45,8 +47,7 @@ from overrides import overrides
 
 from neuronumba.basic.attr import Attr
 from neuronumba.numba_tools.types import NDA_f8_2d
-from neuronumba.simulator.models import Model
-from neuronumba.simulator.models import LinearCouplingModel
+from neuronumba.simulator.models import Model, LinearCouplingModel
 from neuronumba.numba_tools.config import NUMBA_CACHE, NUMBA_FASTMATH, NUMBA_NOGIL
 
 
@@ -77,12 +78,9 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
     # ------------------------------------------------------------------
     # Variable bookkeeping
     # ------------------------------------------------------------------
-    state_vars      = Model._build_var_dict(['x'])
-    n_state_vars    = len(state_vars)
-    c_vars          = [0]   # x couples between regions
-
-    observable_vars   = Model._build_var_dict(['x'])
-    n_observable_vars = len(observable_vars)
+    _state_var_names = ['x']
+    _coupling_var_names = ['x']
+    _observable_var_names = ['x']
 
     # ------------------------------------------------------------------
     # Model parameters  (attributes tagged Model.Type.Model are
@@ -224,6 +222,7 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
     # Analytical Jacobian
     # ------------------------------------------------------------------
 
+    @overrides
     def get_jacobian(self, sc: np.ndarray) -> np.ndarray:
         """
         Return the analytical Jacobian of the OU model.
@@ -256,27 +255,3 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
         jacobian = self.g * sc - np.diag(inv_tau)
         return jacobian
 
-    # ------------------------------------------------------------------
-    # Noise covariance matrix  (overrides Model default for clarity)
-    # ------------------------------------------------------------------
-
-    @overrides
-    def get_noise_matrix(self, sigma: float, N: int) -> np.ndarray:
-        """
-        Return the noise covariance matrix Q for the OU model.
-
-        The OU diffusion term is  B dW  with  B = sigma * I, giving the
-        isotropic covariance matrix:
-
-            Q = sigma^2 * I_{N x N}
-
-        Parameters
-        ----------
-        sigma : noise amplitude (standard deviation of Wiener increments)
-        N     : number of ROIs
-
-        Returns
-        -------
-        Qn : (N, N) covariance matrix
-        """
-        return (sigma ** 2) * np.eye(N)
