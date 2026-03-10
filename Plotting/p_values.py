@@ -11,6 +11,8 @@ import itertools
 import numpy as np
 import scipy.stats as stats
 
+import Utils.Stats.Cohens_d as cohens_d
+
 
 fontSize = 10
 
@@ -18,15 +20,34 @@ fontSize = 10
 # --------------------------------------------------------------------------------------
 # Simply avg and Std Dev printing function...
 # --------------------------------------------------------------------------------------
-def printAveragesAndStd(dataset):
+def printStats(dataset, one_sample=False, to_LaTeX=True):
     print("\nAverages and Std Dev:")
-    if isinstance(dataset, dict):
-        for setToPlot in dataset:
-            print(f'{setToPlot}: avg={np.nanmean(dataset[setToPlot])}, stdev={np.nanstd(dataset[setToPlot])}, len={len(dataset[setToPlot])}')
+    if not isinstance(dataset, dict):
+        dict_dataset = {}
+        for pos, dataToPlot in enumerate(dataset.T):
+            dict_dataset[pos] = dataToPlot
+        dataset = dict_dataset
+    for setToPlot in dataset:
+        # if there are nan problems, use np.count_nonzero(~np.isnan(dataset[setToPlot]))
+        print(f'{setToPlot}: avg={np.nanmean(dataset[setToPlot])}, stdev={np.nanstd(dataset[setToPlot])}, len={len(dataset[setToPlot])}')
+    # for pair in itertools.combinations(dataset, r=2):
+    #     if pair[0] != pair[1]:
+    #         d = cohens_d.cohens_d(dataset[pair[0]], dataset[pair[1]])
+    #         print(f"Cohen's d {pair} = {d} ({cohens_d.cohens_d_label(d)})")
+    if one_sample:
+        df = cohens_d.effect_size_table(dataset)
+        print(df)
     else:
-        for pos, setToPlot in enumerate(dataset.T):
-            print(f'{pos}: avg={np.nanmean(setToPlot)}, stdev={np.nanstd(setToPlot)}, len={np.count_nonzero(~np.isnan(setToPlot))}')  # ~ inverts the boolean matrix returned from np.isnan
-    print()
+        df = cohens_d.pairwise_effect_size_table(dataset)
+        print(df)
+    if to_LaTeX:
+        tex = df.to_latex(
+            index=False,
+            caption="Effect sizes (Cohen’s d) with 95\\% bootstrap confidence intervals.",
+            label="tab:effect_sizes",
+            escape=False
+        )
+        print(f'\n{tex}\n')
 
 
 # --------------------------------------------------------------------------------------
@@ -216,7 +237,7 @@ def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
                                   columnLables=None, graphLabel='', pairs=None,
                                   test='Mann-Whitney', comparisons_correction='BH',
                                   show_N=True):
-    printAveragesAndStd(tests)
+    printStats(tests)
     if columnLables is None:
         columnLables = tests.keys()
     if show_N:  # we need to do this BEFORE the padding for equal length!
