@@ -79,9 +79,10 @@ def run():
     # FC_emp = np.corrcoef(ts_emp_filt)
 
     tr = 2.0
-    dt = 0.01
+    dt = 0.01  # milliseconds (1e-5 seconds)
     Tmax_vol = 295
     T_sim_seconds = (Tmax_vol * tr)
+    T_warm_seconds = 20
 
     compact_simulator = Compact_Simulator(
         model = SanzPerl2023.ExactMeanField2023(),
@@ -95,8 +96,8 @@ def run():
     )
 
     simulated_bold = compact_simulator.generate_bold(
-        warmup_samples = 1000, # This samples will be discarded
-        simulated_samples = math.ceil(T_sim_seconds*1000 / dt)  # Number of useful samples to generate, this will be the size of the generated bold
+        warmup_time = T_warm_seconds*1000, # This samples will be discarded
+        simulated_time = T_sim_seconds*1000  # Number of useful samples to generate, this will be the size of the generated bold
     )
 
     fig, axs = plt.subplots(1)

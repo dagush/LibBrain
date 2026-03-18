@@ -95,9 +95,9 @@ Deltavec = repmat([Deltae; Delta_i], N, 1);
 Jglob = Jee;
 
 % --- FIC CALCULATION (Herzog way) ---
-Node_Strength = sum(C, 2); 
-FIC_Factor = (alpha_fic * G * Node_Strength) + 1;
-Jei_vec = Jei_base .* FIC_Factor; 
+%Node_Strength = sum(C, 2); 
+%FIC_Factor = (alpha_fic * G * Node_Strength) + 1;
+%Jei_vec = Jei_base .* FIC_Factor; 
 
 % Build Coupling Matrix
 A_mat = zeros(2*N, 2*N);
@@ -106,7 +106,7 @@ for m = 1:N
     idx_i = 2 + 2*(m-1);
     A_mat(idx_e, idx_e) = Jee;
     A_mat(idx_i, idx_i) = Jii;
-    A_mat(idx_e, idx_i) = Jei_vec(m); 
+    A_mat(idx_e, idx_i) = Jei_base; % Jei_vec(m); 
     A_mat(idx_i, idx_e) = Jie;
     for n = 1:N
         idx_e_n = 1 + 2*(n-1);

@@ -83,20 +83,20 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
     _observable_var_names = ['x']
 
     # ------------------------------------------------------------------
-    # Model parameters  (attributes tagged Model.Type.Model are
+    # Model parameters  (attributes tagged Model.Tag.REGIONAL are
     # automatically packed into the m-array used inside numba kernels)
     # ------------------------------------------------------------------
 
     tau = Attr(
         default=20.0,
-        attributes=Model.Type.Model,
+        attributes=Model.Tag.REGIONAL,
         doc="Mean-reversion (decay) time constant (ms). Controls how fast "
             "activity returns to the long-term mean mu.",
     )
 
     mu = Attr(
         default=0.0,
-        attributes=Model.Type.Model,
+        attributes=Model.Tag.REGIONAL,
         doc="Long-term mean of the process (a.u.). "
             "Can be a scalar (broadcast to all ROIs) or an array of shape (n_rois,).",
     )

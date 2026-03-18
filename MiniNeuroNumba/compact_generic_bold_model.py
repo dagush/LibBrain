@@ -15,7 +15,7 @@ from neuronumba.simulator.connectivity import Connectivity
 from neuronumba.simulator.history import HistoryNoDelays
 from neuronumba.simulator.integrators import EulerStochastic
 
-from compact_bold_simulator import CompactBoldSimulatorBase
+from MiniNeuroNumba.compact_bold_simulator import CompactBoldSimulatorBase
 
 # =======================================================================
 # Compact_Simulator
@@ -31,8 +31,8 @@ class Compact_Simulator(CompactBoldSimulatorBase):
 
     def _generate_bold(
         self,
-        warmup_samples: int,
-        simulated_samples: int
+        warmup_time: float,
+        simulated_time: float
     ) -> np.ndarray:
 
         model = self.model
@@ -69,11 +69,11 @@ class Compact_Simulator(CompactBoldSimulatorBase):
         )
 
         # Run simulation
-        sim.run(0, math.ceil((warmup_samples + simulated_samples) * self.tr))
+        sim.run(0, warmup_time + simulated_time)
 
         # Retreive simulated data and remove warmup
         sim_signal = monitor.data(obs_var)
-        start_idx = int(sim_signal.shape[0] * warmup_samples / (warmup_samples + simulated_samples))
+        start_idx = int(sim_signal.shape[0] * warmup_time / (warmup_time + simulated_time))
         sim_signal = sim_signal[start_idx:, :]
 
         # We can proceed to convert the signal to bold

@@ -74,9 +74,9 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
     # Model Parameters
     # ==========================================================================
 
-    theta = Attr(default=1.0, attributes=Model.Type.Model,
+    theta = Attr(default=1.0, attributes=Model.Tag.REGIONAL,
                  doc="Mean-reversion rate (must be positive for stable local dynamics)")
-    mu = Attr(default=0.0, attributes=Model.Type.Model,
+    mu = Attr(default=0.0, attributes=Model.Tag.REGIONAL,
               doc="Long-term mean of the process")
 
     @property

@@ -142,42 +142,42 @@ class ExactMeanField2023(LinearCouplingModel):
     # Model parameters
     # ------------------------------------------------------------------
     # Time constants (non-dimensionalised; typically set to 1 after rescaling)
-    tau_e   = Attr(default=1.0,     attributes=Model.Type.Model,
+    tau_e   = Attr(default=1.0,     attributes=Model.Tag.REGIONAL,
                    doc="Excitatory membrane time constant (non-dim.)")
-    tau_i   = Attr(default=1.0,     attributes=Model.Type.Model,
+    tau_i   = Attr(default=1.0,     attributes=Model.Tag.REGIONAL,
                    doc="Inhibitory membrane time constant (non-dim.)")
 
     # Centre of the Lorentzian excitability distributions
-    eta_e   = Attr(default=-40.0,   attributes=Model.Type.Model,
+    eta_e   = Attr(default=30.0,   attributes=Model.Tag.REGIONAL,
                    doc="Mean excitatory input current (centre of Lorentzian)")
-    eta_i   = Attr(default=-40.0,   attributes=Model.Type.Model,
+    eta_i   = Attr(default=40.0,   attributes=Model.Tag.REGIONAL,
                    doc="Mean inhibitory input current (centre of Lorentzian)")
 
     # Base half-widths of the Lorentzian distributions
     # These are modulated regionally: Delta_n = Delta * (delta1 + delta2 * het_n)
-    Delta_e = Attr(default=40.0,     attributes=Model.Type.Model,
+    Delta_e = Attr(default=40.0,     attributes=Model.Tag.REGIONAL,
                    doc="Base half-width of excitatory Lorentzian (HWHM)")
-    Delta_i = Attr(default=47.0,   attributes=Model.Type.Model,
+    Delta_i = Attr(default=47.0,   attributes=Model.Tag.REGIONAL,
                    doc="Base half-width of inhibitory Lorentzian (HWHM); paper optimal")
 
     # Synaptic coupling constants
-    J_ee    = Attr(default=50.0,    attributes=Model.Type.Model,
+    J_ee    = Attr(default=50.0,    attributes=Model.Tag.REGIONAL,
                    doc="Excitatory self-coupling J_EE")
-    J_ei    = Attr(default=-20.0,    attributes=Model.Type.Model,
+    J_ei    = Attr(default=-20.0,    attributes=Model.Tag.REGIONAL,
                    doc="Inhibitory-to-excitatory coupling J_EI")
-    J_ie    = Attr(default=20.0,    attributes=Model.Type.Model,
+    J_ie    = Attr(default=20.0,    attributes=Model.Tag.REGIONAL,
                    doc="Excitatory-to-inhibitory coupling J_IE")
-    J_ii    = Attr(default=-20.0,     attributes=Model.Type.Model,
+    J_ii    = Attr(default=-20.0,     attributes=Model.Tag.REGIONAL,
                    doc="Inhibitory self-coupling J_II")
 
     # Heterogeneity modulation parameters
-    delta1  = Attr(default=0.0,     attributes=Model.Type.Model,
+    delta1  = Attr(default=1.0,     attributes=Model.Tag.REGIONAL,
                    doc="Bias term for heterogeneity modulation of Delta")
-    delta2  = Attr(default=0.0,     attributes=Model.Type.Model,
+    delta2  = Attr(default=0.0,     attributes=Model.Tag.REGIONAL,
                    doc="Scaling term for heterogeneity modulation of Delta")
 
     # Regional heterogeneity map (per-node vector)
-    het     = Attr(default=0.0,    attributes=Model.Type.Model,
+    het     = Attr(default=0.0,    attributes=Model.Tag.REGIONAL,
                    doc="Normalised regional T1w/T2w heterogeneity map, shape (N,)")
 
     @overrides
@@ -195,10 +195,10 @@ class ExactMeanField2023(LinearCouplingModel):
         R variables are non-negative; V variables near zero.
         """
         state = np.zeros((ExactMeanField2023.n_state_vars, n_rois))
-        state[0, :] = 0.01   # R_e  (small positive firing rate)
-        state[1, :] = 0.0    # V_e
-        state[2, :] = 0.01   # R_i
-        state[3, :] = 0.0    # V_i
+        state[0, :] = 0.7813     # R_e  (small positive firing rate)
+        state[1, :] = -0.4196    # V_e
+        state[2, :] = 0.7813     # R_i
+        state[3, :] = -0.4196    # V_i
         return state
 
     def initial_observed(self, n_rois: int) -> np.ndarray:

@@ -29,19 +29,19 @@ class CompactBoldSimulatorBase(HasAttr):
 
     def generate_bold(
         self,
-        warmup_samples: int,
-        simulated_samples: int
+        warmup_time: float,
+        simulated_time: float
     ) -> np.ndarray:
         start_time = time.perf_counter()
-        simulated_bold = self._generate_bold(warmup_samples, simulated_samples)
+        simulated_bold = self._generate_bold(warmup_time, simulated_time)
         elapsed_time = time.perf_counter() - start_time
         print(f"Bold simulation completed. Took: {elapsed_time:.3e}s")
         return simulated_bold
 
     def _generate_bold(
         self,
-        warmup_samples: int,
-        simulated_samples: int
+        warmup_time: float,
+        simulated_time: float
     ) -> np.ndarray:
         raise NotImplementedError()
 
@@ -65,8 +65,8 @@ class CompactHopfSimulator(CompactBoldSimulatorBase):
 
     def _generate_bold(
         self,
-        warmup_samples: int,
-        simulated_samples: int
+        warmup_time: float,
+        simulated_time: float
     ) -> np.ndarray:
 
         model = self.model
@@ -110,11 +110,11 @@ class CompactHopfSimulator(CompactBoldSimulatorBase):
         )
 
         # Run simulation
-        sim.run(0, math.ceil((warmup_samples + simulated_samples) * (self.tr / 1000.0)))
+        sim.run(0, warmup_time + simulated_time)
 
         # Retreive simulated data and remove warmup
         sim_signal = monitor.data(obs_var)
-        start_idx = int(warmup_samples)
+        start_idx = int(warmup_time)
         sim_signal = sim_signal[start_idx:, :]
 
         # NOTE: I don't think this is needed, we can treat sim_signal as the actual bold_signal
@@ -155,8 +155,8 @@ class CompactDeco2014Simulator(CompactBoldSimulatorBase):
 
     def _generate_bold(
         self,
-        warmup_samples: int,
-        simulated_samples: int
+        warmup_time: float,
+        simulated_time: float
     ) -> np.ndarray:
 
         model = self.model
@@ -197,11 +197,11 @@ class CompactDeco2014Simulator(CompactBoldSimulatorBase):
         )
 
         # Run simulation
-        sim.run(0, math.ceil((warmup_samples + simulated_samples) * self.tr))
+        sim.run(0, warmup_time + simulated_time)
 
         # Retreive simulated data and remove warmup
         sim_signal = monitor.data(obs_var)
-        start_idx = int(sim_signal.shape[0] * warmup_samples / (warmup_samples + simulated_samples))
+        start_idx = int(sim_signal.shape[0] * warmup_time / (warmup_time + simulated_time))
         sim_signal = sim_signal[start_idx:, :]
 
         # We can proceed to convert the signal to bold
@@ -223,8 +223,8 @@ class CompactMontbrioSimulator(CompactBoldSimulatorBase):
 
     def _generate_bold(
         self,
-        warmup_samples: int,
-        simulated_samples: int
+        warmup_time: float,
+        simulated_time: float
     ) -> np.ndarray:
 
         model = self.model
@@ -265,11 +265,11 @@ class CompactMontbrioSimulator(CompactBoldSimulatorBase):
         )
 
         # Run simulation
-        sim.run(0, math.ceil((warmup_samples + simulated_samples) * self.tr))
+        sim.run(0, warmup_time + simulated_time)
 
         # Retreive simulated data and remove warmup
         sim_signal = monitor.data(obs_var)
-        start_idx = int(sim_signal.shape[0] * warmup_samples / (warmup_samples + simulated_samples))
+        start_idx = int(sim_signal.shape[0] * warmup_time / (warmup_time + simulated_time))
         sim_signal = sim_signal[start_idx:, :]
 
         # We can proceed to convert the signal to bold
