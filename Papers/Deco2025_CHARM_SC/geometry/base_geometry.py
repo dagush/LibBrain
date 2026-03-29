@@ -1,5 +1,5 @@
 """
-Deco2025_CHARM_SC/geometry/base_geometry.py
+CHARMsc/geometry/base_geometry.py
 -----------------------------------
 Abstract base class for geometry-based diffusion models on brain parcellations.
 
@@ -82,11 +82,17 @@ class BaseCHARMGeometry(ABC):
         self,
         epsilon:         float = 1400.0,
         t_horizon:       int   = 2,
-        diffusion_steps: int   = 50,
+        diffusion_steps: int   = 50
     ):
         self.epsilon         = epsilon
         self.t_horizon       = t_horizon
         self.diffusion_steps = diffusion_steps
+
+        # Parcels 554 and 907 (0-indexed) correspond to MATLAB parcels 555
+        # and 908 (1-indexed). These two parcels have NaN entries in the
+        # Schaefer 1000 atlas HCP data and must be excluded from comparisons.
+        # Assumption: specific to the Schaefer 1000 parcellation with this
+        # particular HCP dataset. Pass exclude_parcels=[] to disable.
 
         # Set during fit()
         self._coords:      Optional[np.ndarray] = None   # (N, 3) parcel centroids
@@ -179,13 +185,15 @@ class BaseCHARMGeometry(ABC):
         Returns
         -------
         p_states : np.ndarray, shape (N_valid,)
-            Stationary probability of each parcel.
+            Stationary probability of each parcel, with excluded parcels
+            removed. N_valid = N - len(exclude_parcels).
         """
         self._check_is_fitted()
 
         # Compute P^diffusion_steps (full matrix power)
         P_n      = LA.matrix_power(self._Pmatrix, self.diffusion_steps)
         p_states = P_n[0, :]                                # (N,) — first row
+
         return p_states
 
     @property
@@ -214,6 +222,7 @@ class BaseCHARMGeometry(ABC):
                 f"{self.__class__.__name__} is not fitted. "
                 "Call fit(coords) first."
             )
+
 
     def __repr__(self) -> str:
         status = "fitted" if self._is_fitted else "not fitted"

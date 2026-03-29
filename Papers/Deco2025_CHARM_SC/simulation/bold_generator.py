@@ -78,9 +78,6 @@ class BOLDGenerator:
     n_timesteps : int
         Length of each simulated timeseries. Default: 1000 (paper value).
         With N=1000, use at least 1000 so each parcel fires multiple times.
-    exclude_parcels : list of int or None
-        0-indexed parcel indices never chosen as starting points.
-        Default: [554, 907] (Schaefer1000 NaN parcels).
     random_state : int or None
         Random seed for reproducibility. Default: None.
     """
@@ -89,7 +86,6 @@ class BOLDGenerator:
         self,
         P:               np.ndarray,
         n_timesteps:     int = 1000,
-        exclude_parcels: Optional[list[int]] = None,
         random_state:    Optional[int] = None,
     ):
         if P.ndim != 2 or P.shape[0] != P.shape[1]:
@@ -97,14 +93,8 @@ class BOLDGenerator:
         self.P             = P.astype(np.float64, copy=True)
         self.N             = P.shape[0]
         self.n_timesteps   = n_timesteps
-        self.exclude_parcels = exclude_parcels if exclude_parcels is not None \
-                               else [554, 907]
         self.rng           = np.random.default_rng(random_state)
 
-        self._valid_parcels = np.array(
-            [i for i in range(self.N) if i not in self.exclude_parcels],
-            dtype=np.int32,
-        )
 
     # -------------------------------------------------------------------------
     # Private: single trial — loop version (faithful MATLAB translation)
@@ -141,7 +131,7 @@ class BOLDGenerator:
         """
         tssim = np.zeros((self.N, self.n_timesteps), dtype=np.float32)
 
-        ini           = int(self.rng.choice(self._valid_parcels))
+        ini           = int(self.rng.integers(0, self.N))
         tssim[ini, 0] = 1.0
 
         for tt in range(1, self.n_timesteps):
@@ -179,7 +169,7 @@ class BOLDGenerator:
         """
         tssim = np.zeros((self.N, self.n_timesteps), dtype=np.float32)
 
-        ini           = int(self.rng.choice(self._valid_parcels))
+        ini           = int(self.rng.integers(0, self.N))
         tssim[ini, 0] = 1.0
 
         for tt in range(1, self.n_timesteps):
