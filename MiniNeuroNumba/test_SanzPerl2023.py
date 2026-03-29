@@ -85,8 +85,8 @@ def run():
     T_warm_seconds = 20
 
     compact_simulator = Compact_Simulator(
-        model = SanzPerl2023.ExactMeanField2023(),
-        obs_var = 'R_e',
+        model = SanzPerl2023.EMFM(),
+        obs_var = 'r_e',
         weights = sc_norm,
         use_temporal_avg_monitor = False,
         g = 5.30,
