@@ -66,7 +66,7 @@ def observables_to_long_dataframe(
                     "RSN": RSN,
                 })
             else:
-                parcels = eval(RSN_data[RSN])
+                parcels = eval(RSN_data[RSN]) if RSN_data else range(len(value))
                 for idx, v in zip(parcels, value):
                     rows.append({
                         "id": entity_id,
