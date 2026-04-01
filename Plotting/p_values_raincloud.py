@@ -130,7 +130,7 @@ def _draw_raincloud_elements(
 # Public API — mirrors plotComparisonAcrossLabels2Ax / plotComparisonAcrossLabels2
 # ──────────────────────────────────────────────────────────────────────────────
 
-def plotRaincloudAcrossLabels2Ax(
+def plotComparisonAcrossLabels2Ax(
     ax,
     tests,
     custom_test=None,
@@ -257,7 +257,7 @@ def plotRaincloudAcrossLabels2Ax(
     ax.set_title(graphLabel)
 
 
-def plotRaincloudAcrossLabels2(
+def plotComparisonAcrossLabels2(
     tests,
     custom_test=None,
     columnLables=None,
@@ -284,7 +284,7 @@ def plotRaincloudAcrossLabels2(
     figsize : (width, height) in inches, or None for matplotlib default
     """
     fig, ax = plt.subplots(figsize=figsize)
-    plotRaincloudAcrossLabels2Ax(
+    plotComparisonAcrossLabels2Ax(
         ax, tests,
         custom_test=custom_test,
         columnLables=columnLables,
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         "Treatment": rng.normal(0.65, 0.20, 25),
         "Sham":      rng.normal(0.45, 0.12, 28),
     }
-    plotRaincloudAcrossLabels2(
+    plotComparisonAcrossLabels2(
         dummy,
         graphLabel="Example raincloud",
         comparisons_correction="BH",
