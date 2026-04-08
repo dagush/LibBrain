@@ -493,6 +493,55 @@ class CHARMReducer(DimensionalityReducer):
         return Z
 
     # ------------------------------------------------------------------
+    # Override inverse_transform: explicit caveats vs PCA
+    # ------------------------------------------------------------------
+
+    def inverse_transform(self, Z: np.ndarray) -> np.ndarray:
+        """
+        Approximate reconstruction of BOLD from CHARM latent coordinates.
+
+        Computes:  X_hat = conet @ Z   (N×k) @ (k×T) → (N×T)
+
+        Important caveats — read before using
+        ----------------------------------------
+        1. **conet is not orthonormal.**
+           conet columns are unit-norm (L2-normalised) but not mutually
+           orthogonal. Therefore conet.T @ conet ≠ I, and this is NOT
+           a proper orthogonal projection. PCA's inverse_transform is
+           exact in the least-squares sense; CHARM's is not.
+
+        2. **Nyström compounds the approximation.**
+           If Z was produced by transform(X_new) on genuinely new data,
+           it carries Nyström approximation error. Feeding it into this
+           function compounds that error with the non-orthogonal basis.
+           Always call score(X_new) afterwards to quantify the quality.
+
+        3. **Semantic difference from PCA.**
+           In PCA, Z lives in the same geometric space as X (just
+           lower-dimensional). In CHARM, Z = Phi is a diffusion manifold
+           embedding — conet is a correlation-based bridge back to parcel
+           space, not a geometric inverse. Think of X_hat as "the BOLD
+           pattern associated with these manifold coordinates" rather than
+           "the original signal".
+
+        Use check_reconstruction_quality() to get an explicit quality
+        report before trusting X_hat for downstream analysis.
+
+        Parameters
+        ----------
+        Z : np.ndarray, shape (k, T)
+            Latent coordinates — output of transform().
+
+        Returns
+        -------
+        X_hat : np.ndarray, shape (N, T)
+            Approximate BOLD reconstruction in parcel space.
+        """
+        self._check_is_fitted()
+        # Delegate to base class: W @ Z where W = conet (N, k)
+        return self._conet @ Z
+
+    # ------------------------------------------------------------------
     # Override score: explained variance is not the natural metric for CHARM
     # ------------------------------------------------------------------
 
@@ -507,6 +556,8 @@ class CHARMReducer(DimensionalityReducer):
 
         Note: unlike PCA, CHARM does not guarantee that conet columns are
         orthonormal, so this is an approximation of explained variance.
+        Typical values are lower than PCA for the same k — this is expected
+        and does not indicate a bug.
 
         Parameters
         ----------
@@ -515,8 +566,94 @@ class CHARMReducer(DimensionalityReducer):
         Returns
         -------
         float
+            Explained variance ratio. Values below ~0.1 suggest the
+            reconstruction is poor and should not be used for analysis
+            that depends on X_hat amplitude (e.g. ECM comparison).
         """
         return super().score(X)
+
+    def check_reconstruction_quality(
+        self,
+        X:                np.ndarray,
+        warn_threshold:   float = 0.1,
+    ) -> dict:
+        """
+        Compute and report reconstruction quality metrics for X.
+
+        Runs both the reconstruction and several quality metrics, prints
+        a human-readable summary, and warns if quality is below threshold.
+
+        Typical Usage
+        -------------
+        reducer = CHARMReducer(k=7, epsilon=300, t_horizon=2)
+        reducer.fit(X_concat)
+        # Check quality before trusting the reconstruction
+        metrics = reducer.check_reconstruction_quality(X_concat)
+        # CHARM reconstruction quality  (k=7)
+        #   Explained variance : 0.183  (moderate)
+        #   Pearson r          : 0.421
+        #   conet orthogonality error : 2.347  (PCA = 0.0, CHARM typically > 0)
+        # Then use it
+        Z_new = reducer.transform(X_new)
+        X_hat = reducer.inverse_transform(Z_new)
+
+        Parameters
+        ----------
+        X : np.ndarray, shape (N, T)
+            BOLD signal to reconstruct and compare against.
+        warn_threshold : float
+            Emit a RuntimeWarning if explained variance falls below this.
+            Default: 0.1 (10%).
+
+        Returns
+        -------
+        dict with keys:
+            'explained_variance' : float   — 1 - SS_res/SS_tot
+            'pearson_r'          : float   — correlation(X_flat, X_hat_flat)
+            'conet_orthogonality': float   — ||conet.T @ conet - I||_F
+                                             (0 = orthonormal, like PCA)
+        """
+
+        self._check_is_fitted()
+        X       = self._validate_input(X)
+        Z       = self.transform(X)
+        X_hat   = self.inverse_transform(Z)
+
+        # Explained variance
+        ev = self.score(X)
+
+        # Pearson r between original and reconstructed (flattened)
+        r, _ = stats.pearsonr(X.ravel(), X_hat.ravel())
+
+        # How far conet is from orthonormal
+        # Perfect orthonormality (PCA): ||W.T @ W - I||_F = 0
+        W   = self._conet   # (N, k)
+        WtW = W.T @ W       # (k, k)
+        orth_err = float(np.linalg.norm(WtW - np.eye(self.k), 'fro'))
+
+        print(f"\nCHARM reconstruction quality  (k={self.k})")
+        print(f"  Explained variance : {ev:.4f}  "
+              f"({'good' if ev > 0.3 else 'moderate' if ev > 0.1 else 'poor'})")
+        print(f"  Pearson r          : {r:.4f}")
+        print(f"  conet orthogonality error : {orth_err:.4f}  "
+              f"(PCA = 0.0, CHARM typically > 0)")
+
+        if ev < warn_threshold:
+            warnings.warn(
+                f"CHARM reconstruction quality is poor: explained variance = "
+                f"{ev:.4f} < threshold {warn_threshold:.4f}. "
+                "X_hat may not be suitable for analyses that depend on "
+                "amplitude fidelity (e.g. ECM comparison). "
+                "Consider increasing k or checking your epsilon/t_horizon.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+        return {
+            'explained_variance':  ev,
+            'pearson_r':           float(r),
+            'conet_orthogonality': orth_err,
+        }
 
     # ------------------------------------------------------------------
     # Extra: expose the raw timepoint embedding for downstream analysis
