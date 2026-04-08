@@ -1,11 +1,11 @@
 """
-Neuroreduce/utils/ecm.py
+Neuroreduce/utils/edge_centric_metastability.py
 --------------------------
 Edge-centric metastability utilities for Neuroreduce.
 
 The core ECM computation now lives in NeuroNumba as a proper Observable:
 
-    neuronumba/observables/ecm.py  →  ECM._compute_from_fmri()
+    neuronumba/observables/edge_centric_metastability.py  →  ECM._compute_from_fmri()
 
 This module provides three thin wrappers that bridge the NeuroNumba
 observable into the Neuroreduce per-subject pipeline:
@@ -40,7 +40,7 @@ from scipy import stats
 # NeuroNumba ECM observable — the single source of truth for the core maths.
 # This import will fail if neuronumba is not installed; the error message
 # is intentionally left as-is so the user knows exactly what to install.
-from neuronumba.observables.ecm import ECM as _ECMObservable
+from neuronumba.observables.edge_centric_metastability import ECM as _ECMObservable
 
 
 # =============================================================================
