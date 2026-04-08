@@ -58,6 +58,7 @@ class ADNI_B(DataLoader):
 
     def set_basePath(self, path):
         self.base_238_folder = path + "ADNI-B/N238rev/"
+        self.base_parcellation_folder = self.base_238_folder + f'Schaefer{self.SchaeferSize}/'
 
     def _loadAllData(self):
         # ---- load common metadata
@@ -67,7 +68,7 @@ class ADNI_B(DataLoader):
         site_path = '/'.join(self.base_238_folder.split('/')[:-2])+'/'
         self.site_information = pd.read_csv(site_path + 'sites_ADNI3_ABeta_N304.csv')
         # ---- load GMV info
-        site_GMV_path = self.base_238_folder + 'GMV/ADNI_GMV_schaefer400_wide.csv'
+        site_GMV_path = self.base_parcellation_folder + 'GMV/ADNI_GMV_schaefer400_wide.csv'
         self.GMV = pd.read_csv(site_GMV_path)
         return
 
@@ -78,11 +79,6 @@ class ADNI_B(DataLoader):
         return self.SchaeferSize
 
     def get_AvgSC_ctrl(self, normalized=None):
-        # SC = hdf.loadmat(base_folder + 'sc_schaefer_MK.mat')['sc_schaefer']
-        # if normalized:
-        #     return self._correctSC(SC)
-        # else:
-        #     return SC
         raise NotImplemented('We do not have the SC!')
 
     def get_groupLabels(self):
@@ -151,21 +147,6 @@ class ADNI_B_N193_no_filt(ADNI_B):
                          discard_AD_ABminus=discard_AD_ABminus,
                          SchaeferSize=SchaeferSize,  # by default, let's use the Schaefer2018 400 parcellation / 1000
                          use_pvc = use_pvc,)
-        # self.SchaeferSize = SchaeferSize
-        # self.use_pvc = use_pvc
-        # self.groups = ['HC','MCI', 'AD']
-        # if path is not None:
-        #     self.set_basePath(path)  #, prefiltered_fMRI)
-        # else:
-        #     self.set_basePath(WorkBrainDataFolder)  #, prefiltered_fMRI)
-        # self.timeseries = {}
-        # self.burdens = {}
-        # self.meta_information = None
-        # self._loadAllData()
-        # if discard_AD_ABminus:
-        #     # ---------- discard all subjects with AD and ABeta-, because they are not subjects usually
-        #     #            classified as having with dementia by AD...
-        #     self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013'])  #,'126_S_6721'])
 
     def set_basePath(self, path):  #, prefiltered_fMRI):
         super().set_basePath(path)
@@ -254,22 +235,6 @@ class ADNI_B_N238rev(ADNI_B):
                          discard_AD_ABminus=discard_AD_ABminus,
                          SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation / 1000
                          use_pvc=use_pvc,)
-        # # self.SchaeferSize = SchaeferSize
-        # # self.ADNI_version = ADNI_version
-        # self.use_pvc = use_pvc
-        # self.groups = ['HC','MCI', 'AD']
-        # if path is not None:
-        #     self.set_basePath(path)  #, prefiltered_fMRI)
-        # else:
-        #     self.set_basePath(WorkBrainDataFolder)  #, prefiltered_fMRI)
-        # self.timeseries = {}
-        # self.burdens = {}
-        # self.meta_information = None
-        # self._loadAllData()
-        # if discard_AD_ABminus:
-        #     # ---------- discard all subjects with AD and ABeta-, because they are not subjects usually
-        #     #            classified as having with dementia by AD...
-        #     self.discardSubjects(['116_S_6543','168_S_6754','022_S_6013','126_S_6721'])
 
     def set_basePath(self, path):  #, prefiltered_fMRI):
         super().set_basePath(path)
@@ -348,13 +313,6 @@ class ADNI_B_N238rev(ADNI_B):
 class ADNI_B_Alt(DataLoader):
     def __init__(self, OrigDataLoader, new_classification):
         self.DL = OrigDataLoader
-        # self.DL = ADNI_B_N193_no_filt(path, #prefiltered_fMRI=prefiltered_fMRI,
-        #                               discard_AD_ABminus=discard_AD_ABminus,
-        #                               SchaeferSize=SchaeferSize,
-        #                               use_pvc=use_pvc)
-        # self.DL = ADNI_B_N238rev(path, #prefiltered_fMRI=prefiltered_fMRI,
-        #                          discard_AD_ABminus=discard_AD_ABminus,
-        #                          use_pvc=use_pvc)
         self.groups = new_classification
         self.classification = {}
         orig_classification = self.DL.get_classification()
@@ -415,12 +373,12 @@ if __name__ == '__main__':
     gCtrl = baseDL.get_groupSubjects('HC')
     s1 = baseDL.get_subjectData(gCtrl[0])
     print('done sch400! ;-)')
-    # ---- test Schaefer 1000
+    # ---- test alternative classification
     DL = ADNI_B_Alt(baseDL, ['HC(AB-)', 'HC(AB+)', 'MCI(AB+)', 'AD(AB+)'])  # all subjects, irregardly if they have burden or not
     sujes_alt = DL.get_classification()
     gCtrl_alt = DL.get_groupSubjects('HC(AB-)')
     s1_alt = DL.get_subjectData(gCtrl_alt[0])
-    print('done sch! ;-)')
+    print('done ALT! ;-)')
 
 # ================================================================================================================
 # ================================================================================================================
