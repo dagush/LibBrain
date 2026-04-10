@@ -17,8 +17,6 @@ import pandas as pd
 
 from neuronumba.tools.filters import BandPassFilter
 from neuronumba.observables import Turbulence
-# from neuronumba.observables import Information_transfer
-from Plotting.p_values import printStats
 
 import Utils.decorators as decorators
 
@@ -68,10 +66,6 @@ def computeTurbu_subj(subj, timeseries, range, DL):
 
     bpf = BandPassFilter(k=2, flp=0.008, fhi=0.08, tr=DL.TR()*1000.)   # Define a band pass filter
 
-    # fullDataPath = dataPath + f'subj_{subj}/'
-    # if not os.path.exists(fullDataPath):
-    #     os.makedirs(fullDataPath)
-
     # =======================================================================
     # dictionaries for each subject
     # =======================================================================
@@ -83,7 +77,6 @@ def computeTurbu_subj(subj, timeseries, range, DL):
         # Define the turbulence object
         # =======================================================================
         Turbu = Turbulence(cog_dist=coords, lambda_val=lambda_v, ignore_nans=True)
-        # Turbu = Information_transfer(cog_dist=coords, lambda_val=lambda_v, ignore_nans=True)
         Turbu.configure()
 
         # VERY IMPORTANT: For performance reasons, the filter expects the signal to be in the
@@ -119,11 +112,9 @@ def computeTurbu(range, DL, path):
 # ==========================================================================
 if __name__=="__main__":
     # decorators.forceCompute = True  # Use this to force re-computations.
-    # lambdas = [0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21, 0.24, 0.27]
     lambdas = [0.18]
-    rev_lambdas = list(reversed(lambdas))  # To have the same order as in Matlab
     path = f'./_Data_Produced/turbu.csv'
-    computeTurbu(rev_lambdas, DL, path)
+    computeTurbu(lambdas, DL, path)
     print("done")
 
 # ================================================================================================================
