@@ -174,7 +174,7 @@ def plotComparisonAcrossLabels2Ax(
     point_size   : size of rain dots in points²                  (default 3.5)
     """
     # ── 0. Stats printout (same as boxplot version) ──────────────────────────
-    from p_values import printStats, padEqualLengthDicts   # adjust import path as needed
+    from Plotting.p_values import printStats, padEqualLengthDicts   # adjust import path as needed
     printStats(tests)
 
     # ── 1. Resolve column order ───────────────────────────────────────────────

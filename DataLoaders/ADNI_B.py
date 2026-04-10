@@ -152,7 +152,7 @@ class ADNI_B_N193_no_filt(ADNI_B):
         super().set_basePath(path)
         # --------- timeseries
         self.base_193_folder = path + "ADNI-B/N193_no_filt/"
-        fMRI_folder = self.base_193_folder + f'sch{self.SchaeferSize}/'
+        fMRI_folder = self.base_193_folder + f'Schaefer{self.SchaeferSize}/'
         self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_batches{}_' + f'sch{self.SchaeferSize}_matching_QC_COMBINED.mat'
         self.ID_path = fMRI_folder + 'combined_PTIDS_ADNI3_{}_MPRAGE.mat'
         if self.SchaeferSize == 400:
@@ -228,24 +228,24 @@ class ADNI_B_N238rev(ADNI_B):
                  # prefiltered_fMRI=False,
                  discard_AD_ABminus=True,
                  # ADNI_version='N238rev',  # N238rev
-                 # SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation
+                 SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation
                  use_pvc=True,
                  ):
         super().__init__(path=None,
                          discard_AD_ABminus=discard_AD_ABminus,
-                         SchaeferSize=400,  # by default, let's use the Schaefer2018 400 parcellation / 1000
+                         SchaeferSize=SchaeferSize,  # by default, let's use the Schaefer2018 400 parcellation / 1000
                          use_pvc=use_pvc,)
 
     def set_basePath(self, path):  #, prefiltered_fMRI):
         super().set_basePath(path)
-        fMRI_folder = self.base_238_folder + 'tseries/sch400/'
+        fMRI_folder = self.base_parcellation_folder + 'tseries/'
         # if prefiltered_fMRI:
         #     self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev.mat'
         # else:
         self.fMRI_path = fMRI_folder + 'tseries_ADNI3_{}_MPRAGE_IRFSPGR_sch400_N238rev_nofilt.mat'
-        self.ID_path = fMRI_folder + 'PTID_ADNI3_{}_MPRAGE_IRFSPGR_all.mat'
-        self.ABeta_path = self.base_238_folder + 'abeta_wc' + ('_pvc/' if self.use_pvc else '/')
-        self.tau_path = self.base_238_folder + 'tau_igm' + ('_pvc/' if self.use_pvc else '/')
+        self.ID_path = self.base_238_folder + 'PTID_ADNI3_{}_MPRAGE_IRFSPGR_all.mat'
+        self.ABeta_path = self.base_parcellation_folder + 'abeta_wc' + ('_pvc/' if self.use_pvc else '/')
+        self.tau_path = self.base_parcellation_folder + 'tau_igm' + ('_pvc/' if self.use_pvc else '/')
 
     # ---------------- load fMRI data
     def _loadSubjects_fMRI(self, IDs, fMRI_path):
@@ -368,7 +368,7 @@ print('_Data_Raw loading done!')
 # =========================  debug
 if __name__ == '__main__':
     # ---- test Schaefer 400
-    baseDL = ADNI_B_N193_no_filt()  # ADNI_B_N238rev / ADNI_B_N193_no_filt
+    baseDL = ADNI_B_N238rev()  # ADNI_B_N238rev / ADNI_B_N193_no_filt
     sujes = baseDL.get_classification()
     gCtrl = baseDL.get_groupSubjects('HC')
     s1 = baseDL.get_subjectData(gCtrl[0])

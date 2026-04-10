@@ -51,7 +51,7 @@ from neuronumba.observables.fc import FC as _FCObservable
 from neuronumba.tools.filters import BandPassFilter
 
 # ── Your existing data infrastructure ────────────────────────────────────────
-from DataLoaders.HCP_Schaefer1000 import HCP
+from DataLoaders.HCP_Schaefer2018 import HCP
 
 
 # =============================================================================

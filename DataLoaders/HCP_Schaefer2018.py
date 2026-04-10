@@ -24,7 +24,8 @@ from DataLoaders.WorkBrainFolder import *
 # ==========================================================================
 
 maxSubjects = 1003
-tasks = ['REST1']  # ['REST1', 'EMOTION', 'GAMBLING', 'LANGUAGE', 'MOTOR', 'RELATIONAL', 'SOCIAL', 'WM']
+tasks1000 = ['REST1']
+tasksAll = ['REST1', 'EMOTION', 'GAMBLING', 'LANGUAGE', 'MOTOR', 'RELATIONAL', 'SOCIAL', 'WM']
 minLength = 175
 
 
@@ -45,18 +46,14 @@ class HCP(DataLoader):
             self.set_basePath(WorkBrainDataFolder)
         self.timeseries = {}
         self.excluded = {}
-        self.__loadFilteredData()  # chosenDatasets=chosenDatasets, forceUniqueSet=forceUniqueSet)
+        self.__loadFilteredData(chosenDatasets=self.get_groupLabels())  # chosenDatasets=chosenDatasets, forceUniqueSet=forceUniqueSet)
 
     def name(self):
         return 'HCP_schaefer1000'
 
     def set_basePath(self, path):
         self.base_folder = path + "HCP/Schaefer2018/"
-        if self.SchaeferSize == 1000:
-            self.fMRI_path = self.base_folder + str(self.SchaeferSize) + '/hcp_{}_LR_schaefer1000.mat'
-        else:
-            self.fMRI_path = self.base_folder + str(self.SchaeferSize) + '/ALL_HCP_100_unrelated_Schaefer2018_100Parcels_17Networks_order_{}_LR.mat'
-        # self.parcellations_folder = WorkBrainDataFolder + "Data_Raw/_Parcellations/Schaefer2018/"
+        self.fMRI_path = self.base_folder + str(self.SchaeferSize) + '/hcp_{}_LR_' + f'schaefer{self.SchaeferSize}.mat'
 
     def TR(self):
         return 0.72  # Repetition Time (seconds)
@@ -86,11 +83,14 @@ class HCP(DataLoader):
         return list(test)
 
     def get_groupLabels(self):
-        return tasks
+        if self.SchaeferSize == 1000:
+            return tasks1000
+        else:
+            return tasksAll
 
     def get_classification(self):
         classi = {}
-        for task in tasks:
+        for task in self.get_groupLabels():
             test = self.timeseries[task].keys()
             for subj in test:
                 classi[subj] = subj[1]
@@ -132,12 +132,12 @@ class HCP(DataLoader):
                 # print(f'reading subject {pos}')
                 group = h5File[subj[0]]
                 try:
-                    dbs80ts = np.array(group['schaeferts'])
-                    if dbs80ts.shape[0] < minLength:  # Some individuals have too short time series
-                        print(f'should ignore register {subj} at {(pos, task)}: length {dbs80ts.shape[0]}')
-                    all_fMRI[(pos, task)] = dbs80ts.T
+                    ts = np.array(group['schaeferts'])
+                    if ts.shape[0] < minLength:  # Some individuals have too short time series
+                        print(f'should ignore register {subj} at {(pos, task)}: length {ts.shape[0]}')
+                    all_fMRI[(pos, task)] = ts.T
                 except:
-                    print(f'ignoring register {subj} at {pos}')
+                    print(f'ignoring register {subj} at {pos} for task {task} because of missing data')
                     excluded.append(pos)
         return all_fMRI, excluded
 
@@ -183,7 +183,7 @@ class HCP(DataLoader):
     # --------------------------------------------------------------------------
     # ---------------- load and filter data (some entries are "broken")
     # --------------------------------------------------------------------------
-    def __loadFilteredData(self, chosenDatasets=tasks,  # forceUniqueSet=False
+    def __loadFilteredData(self, chosenDatasets=tasksAll,  # forceUniqueSet=False
                          ):
         allSubj = set([s for s in range(maxSubjects)])
 
