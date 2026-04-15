@@ -38,7 +38,7 @@ def _draw_raincloud_elements(
     order: list,
     palette=None,
     violin_width: float = 0.30,
-    violin_offset: float = 0.30,   # leftward shift of cloud from centre tick
+    violin_offset: float = 0.10,   # leftward shift of cloud from centre tick
     strip_offset: float = 0.18,    # rightward shift of rain from centre tick
     jitter: float = 0.04,
     box_width: float = 0.06,
@@ -83,7 +83,7 @@ def _draw_raincloud_elements(
         density = density / density.max() * violin_width   # normalise to max width
 
         x_centre = tick_pos - violin_offset
-        x_right  = x_centre + density          # fills leftward from x_centre
+        x_right  = x_centre - density          # fills leftward from x_centre
         ax.fill_betweenx(y_grid, x_centre, x_right, color=col, alpha=0.55, linewidth=0)
         ax.plot(x_right, y_grid, color=col, linewidth=0.8, alpha=0.8)
 
@@ -142,7 +142,7 @@ def plotComparisonAcrossLabels2Ax(
     show_N=True,
     palette=None,
     violin_width: float = 0.30,
-    violin_offset: float = 0.30,
+    violin_offset: float = 0.10,
     strip_offset: float = 0.18,
     jitter: float = 0.04,
     box_width: float = 0.06,
@@ -268,7 +268,7 @@ def plotComparisonAcrossLabels2(
     show_N=True,
     palette=None,
     violin_width: float = 0.30,
-    violin_offset: float = 0.30,
+    violin_offset: float = 0.10,
     strip_offset: float = 0.18,
     jitter: float = 0.04,
     box_width: float = 0.06,
