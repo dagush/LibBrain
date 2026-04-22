@@ -46,7 +46,8 @@ class HCP(DataLoader):
             self.set_basePath(WorkBrainDataFolder)
         self.timeseries = {}
         self.excluded = {}
-        self.__loadFilteredData(chosenDatasets=self.get_groupLabels())  # chosenDatasets=chosenDatasets, forceUniqueSet=forceUniqueSet)
+        self.groups = tasks1000 if SchaeferSize == 1000 else tasksAll
+        self.__loadFilteredData()  # chosenDatasets=chosenDatasets, forceUniqueSet=forceUniqueSet)
 
     def name(self):
         return 'HCP_schaefer1000'
@@ -83,14 +84,11 @@ class HCP(DataLoader):
         return list(test)
 
     def get_groupLabels(self):
-        if self.SchaeferSize == 1000:
-            return tasks1000
-        else:
-            return tasksAll
+        return self.groups
 
     def get_classification(self):
         classi = {}
-        for task in self.get_groupLabels():
+        for task in self.groups:
             test = self.timeseries[task].keys()
             for subj in test:
                 classi[subj] = subj[1]
@@ -109,7 +107,7 @@ class HCP(DataLoader):
     # --------------------------------------------------------------------------
     # functions to load fMRI data for certain subjects
     # --------------------------------------------------------------------------
-    def __read_matlab_h5py(self, filename, task, selectedIDs):
+    def __read_matlab_h5py(self, filename, task):
         with h5py.File(filename, "r") as h5File:
             # Print all root level object names (aka keys)
             # these can be group or dataset names
@@ -125,6 +123,10 @@ class HCP(DataLoader):
             # ds_obj = f[a_group_key]  # returns as a h5py dataset object
             # ds_arr = f[a_group_key][()]  # returns as a numpy array
 
+            with h5py.File(filename.replace("hcp", "hcporder"), "r") as h5OrderFile:
+                order = h5OrderFile['order']
+                ids = [str(int(id[0])) for id in order]
+
             all_fMRI = {}
             excluded = []
             subjects = list(h5File['subject'])
@@ -133,17 +135,17 @@ class HCP(DataLoader):
                 group = h5File[subj[0]]
                 try:
                     ts = np.array(group['schaeferts'])
-                    if ts.shape[0] < minLength:  # Some individuals have too short time series
-                        print(f'should ignore register {subj} at {(pos, task)}: length {ts.shape[0]}')
-                    all_fMRI[(pos, task)] = ts.T
+                    if ts.shape[0] < minLength:  # Some individuals have time series too short
+                        print(f'should ignore register {subj} at {(ids[pos], task)}: length {ts.shape[0]}')
+                    all_fMRI[(ids[pos], task)] = ts.T
                 except:
-                    print(f'ignoring register {subj} at {pos} for task {task} because of missing data')
-                    excluded.append(pos)
+                    print(f'missing data for register {subj} at {ids[pos]} for task {task}')
+                    excluded.append(ids[pos])
         return all_fMRI, excluded
 
-    def __loadSubjectsData(self, fMRI_path, task, selectedIDs):
+    def __loadSubjectsData(self, fMRI_path, task):
         print(f'Loading {fMRI_path}')
-        fMRIs, excluded = self.__read_matlab_h5py(fMRI_path, task, selectedIDs)  # ignore the excluded list
+        fMRIs, excluded = self.__read_matlab_h5py(fMRI_path, task)  # ignore the excluded list
         return fMRIs, excluded
 
     # --------------------------------------------------------------------------
@@ -183,14 +185,11 @@ class HCP(DataLoader):
     # --------------------------------------------------------------------------
     # ---------------- load and filter data (some entries are "broken")
     # --------------------------------------------------------------------------
-    def __loadFilteredData(self, chosenDatasets=tasksAll,  # forceUniqueSet=False
-                         ):
-        allSubj = set([s for s in range(maxSubjects)])
-
-        for task in chosenDatasets:
+    def __loadFilteredData(self):
+        for task in self.groups:
             print(f'----------- Checking: {task} --------------')
             fMRI_task_path = self.fMRI_path.format(task)
-            self.timeseries[task], self.excluded[task] = self.__loadSubjectsData(fMRI_task_path, task, allSubj)
+            self.timeseries[task], self.excluded[task] = self.__loadSubjectsData(fMRI_task_path, task)
             print(f'------ Excluded: {len(self.excluded[task])} for {task}------')
 
 
@@ -201,7 +200,7 @@ if __name__ == '__main__':
     DL = HCP(SchaeferSize=100)
     sujes = DL.get_classification()
     gCtrl = DL.get_groupSubjects('REST1')
-    s1 = DL.get_subjectData((0,'REST1'))
+    s1 = DL.get_subjectData(('100206','REST1'))
     sc = DL.get_AvgSC_ctrl(normalized=True)
     print('done! ;-)')
 # ================================================================================================================
