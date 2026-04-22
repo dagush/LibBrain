@@ -8,8 +8,9 @@
 # --------------------------------------------------------------------------------------
 import csv
 import numpy as np
-import neuronumba.tools.hdf as hdf
 import h5py
+
+import neuronumba.tools.hdf as hdf
 
 from DataLoaders.baseDataLoader import DataLoader
 import DataLoaders.Parcellations.Schaefer2018 as Schaefer2018
@@ -197,8 +198,16 @@ class HCP(DataLoader):
 print('_Data_Raw loading done!')
 # =========================  debug
 if __name__ == '__main__':
+    from itertools import chain
+
     DL = HCP(SchaeferSize=100)
     sujes = DL.get_classification()
+
+    rests = [k[0] for k in sujes if k[1] == 'REST1']
+    taskss = {T: [k[0] for k in sujes if k[1] == T] for T in DL.get_groupLabels()}
+    missing = {gr: [x for x in rests if x not in taskss[gr]] for gr in DL.get_groupLabels()}
+    union_missing = list(set(chain.from_iterable([missing[gr] for gr in DL.get_groupLabels()])))
+
     gCtrl = DL.get_groupSubjects('REST1')
     s1 = DL.get_subjectData(('100206','REST1'))
     sc = DL.get_AvgSC_ctrl(normalized=True)
