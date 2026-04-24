@@ -114,7 +114,10 @@ class ADNI_B(DataLoader):
             if (self.GMV['subject'] == GMV_subj_id).any():
                 subj_GMV = self.GMV.loc[self.GMV['subject'] == GMV_subj_id]
                 # Data seems to be in the "canonical" order as the rest of the files here...
-                res[subjectID] |= {'GMV': subj_GMV.to_numpy()[0,2:]}
+                res_GMV = subj_GMV.to_numpy()[0,2:]
+            else:
+                res_GMV = None  # Always add GMV information...
+            res[subjectID] |= {'GMV': res_GMV}
         # ---- site information
         # Quick confirmation checks:
         # print(self.site_information['site'].unique())  # Print all sites
@@ -307,7 +310,6 @@ class ADNI_B_N238rev(ADNI_B):
 #       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD']
 #       ['HC(AB-)', 'HC(AB+)', 'MCI(AB-)', 'MCI(AB+)', 'AD(AB+)']
 # Observe the last two should be the same, but with all the AD or only those with an AB+ status
-# Note: at this moment, this class is intimately related to the ADNI_B_N193_no_filt DataLoader
 # ================================================================================================================
 # ================================================================================================================
 class ADNI_B_Alt(DataLoader):
