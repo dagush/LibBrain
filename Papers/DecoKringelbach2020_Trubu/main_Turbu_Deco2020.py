@@ -99,7 +99,7 @@ def computeTurbu_subj(subj, timeseries, range, DL):
 def computeTurbu(range, DL, path):
     all_results = {}
     classific = DL.get_classification()
-    c = list(classific.keys())  #[0:2]
+    c = list(classific.keys())[0:210]
     for subj in c:
         print(f'Computing Turbu, subj: {subj}')
         subjData = DL.get_subjectData(subj)
@@ -113,7 +113,7 @@ def computeTurbu(range, DL, path):
 if __name__=="__main__":
     # decorators.forceCompute = True  # Use this to force re-computations.
     lambdas = [0.18]
-    path = f'./_Data_Produced/turbu.csv'
+    path = f'_Data_Produced/turbu.csv'
     computeTurbu(lambdas, DL, path)
     print("done")
 

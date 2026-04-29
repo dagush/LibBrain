@@ -4,7 +4,7 @@
 #
 # The multivariate OU process is a linear stochastic model defined by:
 #
-#   dX = -A (X - mu) dt + B dW
+#   dX = -A X dt + B dW
 #
 # where:
 #   X   : state vector (n_rois,)
@@ -22,7 +22,7 @@
 #
 # so that the deterministic skeleton is:
 #
-#   dX_i/dt = -(1/tau) * (X_i - mu_i)  +  g * sum_j [W_SC_ij * X_j]
+#   dX_i/dt = - sum_j [A_ij * X_j]
 #
 # This is the minimal analytically tractable baseline model and is widely
 # used to derive the linearised covariance structure of BOLD-like signals.
@@ -57,9 +57,10 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
 
     Each region i evolves as:
 
-        dX_i/dt = -(1/tau) * (X_i - mu_i)  +  g * coupling_i
+        dX_i/dt = - sum_j [A_ij * X_j]
+                = - coupling_i
 
-    where coupling_i = sum_j [W_SC_ij * X_j] is computed externally by the
+    where coupling_i = sum_j [A_ij * X_j] is computed externally by the
     LinearCouplingModel base class (weighted by the global coupling g).
 
     This is the deterministic skeleton; the simulator injects Gaussian noise
@@ -94,16 +95,9 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
             "activity returns to the long-term mean mu.",
     )
 
-    mu = Attr(
-        default=0.0,
-        attributes=Model.Tag.REGIONAL,
-        doc="Long-term mean of the process (a.u.). "
-            "Can be a scalar (broadcast to all ROIs) or an array of shape (n_rois,).",
-    )
-
     # NOTE: the global coupling strength g is inherited from LinearCouplingModel.
     #       It pre-multiplies the weights matrix, so the effective drift matrix is
-    #           A = diag(1/tau) - g * W_SC
+    #           A = diag(1/tau) * I - g * W_SC
     #       which matches the standard multivariate OU parameterisation.
 
     # ------------------------------------------------------------------
@@ -134,12 +128,8 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
         Initialised to the long-term mean plus small Gaussian noise so that
         different ROIs start from slightly different positions.
         """
-        state = np.empty((OrnsteinUhlenbeck.n_state_vars, n_rois))
-        mu_val = np.asarray(self.mu)
-        if mu_val.ndim == 0:
-            state[0] = float(mu_val) + 0.01 * np.random.randn(n_rois)
-        else:
-            state[0] = mu_val + 0.01 * np.random.randn(n_rois)
+        state = np.ones((OrnsteinUhlenbeck.n_state_vars, n_rois))
+        state[0] = 0.01 * np.random.randn(n_rois)
         return state
 
     def initial_observed(self, n_rois: int) -> np.ndarray:
@@ -149,6 +139,151 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
         observed = np.empty((OrnsteinUhlenbeck.n_observable_vars, n_rois))
         observed[0] = 0.0
         return observed
+
+    # ----------------------------------------------------------------------------------------------------
+    # Normalization criteria:
+    # We need A to be Hurwitz, i.e. Re(λᵢ(A)) < 0 for all i.
+    # There are several ways to enforce this, each with different trade-offs.
+    #
+    # Comparison at a Glance (asked Claude IA)
+    # ----------------------------------------------------------------------------------------------------
+    # Method                 Hurwitz        Preserves     Preserves        Best used when...
+    #                        on W?          asymmetry?    off-diagonal
+    #                                                     structure?
+    # ----------------------------------------------------------------------------------------------------
+    # Spectral radius norm   ❌            ✅             ✅               We tune g and τ explicitly
+    #                        (depends on g, τ)
+    # Spectral projection    ✅            ✅             ⚠️ partial       We need exact spectral control
+    # Diagonal dominance     ✅            ✅             ✅ off-diagonal  We want to preserve topology
+    # Symmetrization + shift ✅            ❌             ⚠️ averaged      The model assumes undirected SC
+    # ----------------------------------------------------------------------------------------------------
+
+    def verify_stability(self, W_norm: np.ndarray) -> bool:
+        """
+        Verify that the actual system matrix A = -(1/tau)*I + g*W is Hurwitz.
+        This is what actually governs stability, NOT W alone.
+        """
+        N = W_norm.shape[0]
+        tau = np.asarray(self.tau)
+        inv_tau = np.ones(N) / float(tau) if tau.ndim == 0 else 1.0 / tau
+
+        A_system = -np.diag(inv_tau) + self.g * W_norm  # the TRUE system matrix
+
+        eigvals = np.linalg.eigvals(A_system)
+        lambda_max = np.max(np.real(eigvals))
+        is_stable = lambda_max < 0
+
+        print(f"  Max Re(λ) of A_system = -(1/τ)I + g·W : {lambda_max:.6f}")
+        print(f"  Hurwitz stable: {is_stable}  (need < 0)")
+        if not is_stable:
+            print(f"  WARNING: reduce g below {np.min(inv_tau) / np.max(np.real(np.linalg.eigvals(W_norm))):.4f}")
+
+        return is_stable
+
+    def normalize_spectral_radius(self, W_raw: np.ndarray,
+                                  zero_diagonal: bool = True,
+                                  verify_stability: bool = True) -> np.ndarray:
+        """
+        Spectral Radius Normalization.
+
+        Divides the matrix by its spectral radius (largest real part of eigenvalues),
+        so that rho(W) = 1. The system is then stable iff g < 1/tau.
+
+        - Preserves: connectivity structure, relative weights, asymmetry
+        - Destroys:  absolute weight scale
+        - Does NOT guarantee Hurwitz on W itself; stability depends on g and tau.
+        """
+        W = W_raw.copy().astype(float)
+        if zero_diagonal:
+            np.fill_diagonal(W, 0)
+
+        spectral_radius = np.max(np.real(np.linalg.eigvals(W)))
+        W_norm = W / spectral_radius
+
+        # Verify stability margin: g * lambda_max < 1/tau
+        if verify_stability:
+            lambda_max = np.max(np.real(np.linalg.eigvals(W_norm)))
+            stability_margin = 1 / self.tau - self.g * lambda_max
+            print(f"Spectral radius of raw W: {spectral_radius:.4f}")
+            print(f"lambda_max after normalization: {lambda_max:.4f}")
+            print(f"Stability margin (should be > 0): {stability_margin:.4f}")
+            if stability_margin <= 0:
+                print(f"WARNING: System is unstable! Reduce g below {1 / (self.tau * lambda_max):.4f}")
+
+        return W_norm
+
+    def hurwitz_spectral_projection(self, W_raw: np.ndarray, epsilon: float = 0.01,
+                                    zero_diagonal: bool = True) -> np.ndarray:
+        """
+        Hurwitz Stabilization via Spectral Projection (Eigendecomposition).
+
+        Decomposes W into its eigenvalues, reflects any eigenvalue with a
+        non-negative real part to -epsilon, then reconstructs. This directly
+        enforces Hurwitz stability on W itself.
+
+        - Preserves: dimensionality, general spectral shape
+        - Destroys:  connectivity structure (non-local operation), symmetry,
+                     and can introduce complex-valued entries (take real part)
+        - Guarantees Hurwitz on W itself (all Re(lambda) <= -epsilon)
+        """
+        W = W_raw.copy().astype(float)
+        if zero_diagonal:
+            np.fill_diagonal(W, 0)
+
+        eigenvalues, eigenvectors = np.linalg.eig(W)
+
+        # Reflect unstable eigenvalues: if Re(lambda) >= 0, replace with -epsilon
+        stabilized = np.where(np.real(eigenvalues) >= 0, -epsilon, eigenvalues)
+
+        W_stable = eigenvectors @ np.diag(stabilized) @ np.linalg.inv(eigenvectors)
+        return np.real(W_stable)  # discard residual imaginary parts from numerics
+
+    def hurwitz_diagonal_dominance(self, W_raw: np.ndarray, epsilon: float = 0.01,
+                                   zero_diagonal: bool = True) -> np.ndarray:
+        """
+        Hurwitz Stabilization via Strict Diagonal Dominance (Gershgorin-based).
+
+        Sets each diagonal entry to -(row_sum + epsilon), enforcing strict diagonal
+        dominance. By the Gershgorin circle theorem, all eigenvalues then lie in
+        discs centered at the diagonal values, guaranteeing Hurwitz stability.
+        This is your friend's second method.
+
+        - Preserves: off-diagonal connectivity pattern, relative off-diagonal weights
+        - Destroys:  absolute weight scale of diagonals; diagonal is fully overwritten
+        - Guarantees Hurwitz on W itself (strictly diagonally dominant, neg diagonal)
+        """
+        W = W_raw.copy().astype(float)
+        if zero_diagonal:
+            np.fill_diagonal(W, 0)
+
+        row_sums = np.sum(np.abs(W), axis=1)  # sum of off-diagonal absolute weights
+        np.fill_diagonal(W, -(row_sums + epsilon))
+        return W
+
+    def hurwitz_symmetrized_negative_definite(self, W_raw: np.ndarray, epsilon: float = 0.01,
+                                              zero_diagonal: bool = True) -> np.ndarray:
+        """
+        Hurwitz Stabilization via Symmetrization + Negative Definite Projection.
+
+        Symmetrizes W as W_sym = (W + W^T) / 2, then shifts the spectrum so all
+        eigenvalues are <= -epsilon. For symmetric matrices, real eigenvalues are
+        guaranteed, and Hurwitz == negative definite.
+
+        - Preserves: average bidirectional connectivity strength
+        - Destroys:  asymmetry (directionality of connections is lost)
+        - Guarantees Hurwitz on W itself (symmetric negative definite)
+        """
+        W = W_raw.copy().astype(float)
+        if zero_diagonal:
+            np.fill_diagonal(W, 0)
+
+        W_sym = (W + W.T) / 2.0
+
+        # Shift so that lambda_max = -epsilon
+        lambda_max = np.max(np.linalg.eigvalsh(W_sym))  # eigvalsh: exact for symmetric
+        shift = lambda_max + epsilon
+        W_stable = W_sym - shift * np.eye(W_sym.shape[0])
+        return W_stable
 
     # ------------------------------------------------------------------
     # Numba differential function
@@ -166,7 +301,7 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
 
         Deterministic update per region:
 
-            dx_i/dt = -(1/tau) * (x_i - mu_i)  +  g * coupling_i
+            dx_i/dt = - coupling_i
 
         The global coupling factor g is already baked into `coupling` by the
         LinearCouplingModel, so the dfun only needs the local decay term.
@@ -187,7 +322,7 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
             Parameters
             ----------
             state    : (1, n_rois) — current activity x
-            coupling : (1, n_rois) — g * W_SC @ x  (linear coupling, already
+            coupling : (1, n_rois) — W_SC @ x  (linear coupling, already
                        scaled by g inside LinearCouplingModel)
 
             Returns
@@ -197,16 +332,13 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
             """
             # Unpack parameters from the pre-built parameter matrix
             tau = m[np.intp(P.tau)]        # shape (n_rois,)
-            mu  = m[np.intp(P.mu)]         # shape (n_rois,)
 
             x = state[0, :]                # current activity (n_rois,)
 
             # Deterministic OU drift:
-            #   dx/dt = -(x - mu) / tau  +  coupling
-            #
-            # coupling already contains  g * (W_SC @ x),  i.e. the full
-            # inter-regional drive scaled by the global coupling constant g.
-            dx = -(x - mu) / tau + coupling[0, :]
+            # dX = -A*X = -(1/tau)*x + g*W@x
+            #          coupling already holds g * W @ x
+            dx = -(1.0 / tau) * x + coupling[0, :]
 
             # Stack into 2-D arrays expected by the simulator
             derivatives = np.empty((1, x.shape[0]))
@@ -254,4 +386,3 @@ class OrnsteinUhlenbeck(LinearCouplingModel):
         # J = -diag(1/tau) + g * W_SC
         jacobian = self.g * sc - np.diag(inv_tau)
         return jacobian
-

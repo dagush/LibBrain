@@ -549,3 +549,6 @@ class EMFM(LinearCouplingModel):
             model.configure()
         """
         return eta_i * (1.0 + delta_1 + delta_2 * beta)
+
+    def get_noise_template(self):
+        return np.r_[1., 1., 1., 1.]  # ['r_e', 'v_e', 'r_i', 'v_i']

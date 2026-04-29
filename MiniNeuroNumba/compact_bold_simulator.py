@@ -51,7 +51,7 @@ class CompactBoldSimulatorBase(HasAttr):
 # =======================================================================
 class CompactHopfSimulator(CompactBoldSimulatorBase):
 
-    a = Attr(default=-0.5, doc="Hopf bifurcation parameter")
+    a = Attr(default=-0.02, doc="Hopf bifurcation parameter")
     omega = Attr(default=0.3, doc="Hopf frequencies in rad/s")
     g = Attr(required=True, doc="Coupling parameter")
     sigma = Attr(default=1e-03, doc="Noise amplitude")
@@ -70,7 +70,7 @@ class CompactHopfSimulator(CompactBoldSimulatorBase):
     ) -> np.ndarray:
 
         model = self.model
-        if not model:
+        if model is None:
             model = Hopf()
         elif not isinstance(model, Hopf):
             raise f"Model instance must be Hopf. Provided <{model.__class__.__name__}>"
@@ -83,7 +83,7 @@ class CompactHopfSimulator(CompactBoldSimulatorBase):
 
         # Prepare everything
         # Remember that Hopf is integrated in seconds and not milliseconds
-        integrator = EulerStochastic(dt=(self.dt/1000.0), sigmas=np.r_[self.sigma, self.sigma])
+        integrator = EulerStochastic(dt=(self.dt/1000.0), sigmas=model.get_noise_template() * self.sigma)
         con = Connectivity(
             weights=self.weights, 
             lengths=np.random.rand(n_roi, n_roi)*10.0 + 1.0, 
@@ -170,7 +170,7 @@ class CompactDeco2014Simulator(CompactBoldSimulatorBase):
         n_roi = np.shape(self.weights)[0]
 
         # Prepare everything
-        integrator = EulerStochastic(dt=self.dt, sigmas=np.r_[self.sigma, self.sigma])
+        integrator = EulerStochastic(dt=self.dt, sigmas=model.get_noise_template() * self.sigma)
         con = Connectivity(
             weights=self.weights, 
             lengths=np.random.rand(n_roi, n_roi)*10.0 + 1.0,
@@ -238,7 +238,7 @@ class CompactMontbrioSimulator(CompactBoldSimulatorBase):
         n_roi = np.shape(self.weights)[0]
 
         # Prepare everything
-        integrator = EulerStochastic(dt=self.dt, sigmas=np.r_[self.sigma, 0.0, 0.0, 0.0, 0.0, 0.0])
+        integrator = EulerStochastic(dt=self.dt, sigmas=model.get_noise_template() * self.sigma)
         con = Connectivity(
             weights=self.weights, 
             lengths=np.random.rand(n_roi, n_roi)*10.0 + 1.0,

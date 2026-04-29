@@ -13,13 +13,11 @@ Original code by Giuseppe Pau, December 2025.
 Refactored by Gustavo Patow, April 6, 2026.
 """
 
-import os
 import numpy as np
-import scipy.io as sio
 import matplotlib.pyplot as plt
 
 import DataLoaders.HCP_Schaefer2018 as HCP
-from neuronumba.observables.distance_rule import EDR_distance_rule, EDR_LR_distance_rule
+from fitting.EDR.exponential_distance_rule import EDR_distance_rule
 
 
 # ---------------------------------------------------------------------------

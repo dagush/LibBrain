@@ -43,7 +43,7 @@ class Compact_Simulator(CompactBoldSimulatorBase):
         n_roi = np.shape(self.weights)[0]
 
         # Prepare everything
-        integrator = EulerStochastic(dt=self.dt, sigmas=np.r_[self.sigma, 0.0, 0.0, 0.0, 0.0, 0.0])
+        integrator = EulerStochastic(dt=self.dt, sigmas=model.get_noise_template() * self.sigma)
         con = Connectivity(
             weights=self.weights,
             lengths=np.random.rand(n_roi, n_roi)*10.0 + 1.0,

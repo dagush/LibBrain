@@ -32,10 +32,9 @@ from numpy import linalg as LA
 from scipy import stats
 
 from Neuroreduce.base import DimensionalityReducer
-from Neuroreduce.methods.base_charm import BaseCHARMKernel
 
 
-class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
+class CHARMReducer(DimensionalityReducer):
     """
     CHARM (Complex HARMonics) dimensionality reduction for fMRI.
 
@@ -270,14 +269,123 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         Pmatrix : np.ndarray, shape (Tm, Tm)
             Row-normalised diffusion matrix (stored for Nyström extension).
         """
-        # Delegates to BaseCHARMKernel shared methods.
-        # Input: ts.T gives (Tm, N) — rows = timepoints, matching
-        # the convention d²_ij = ||x_i - x_j||² between BOLD columns.
-        Pmatrix, Ptr_t, _ = self._build_diffusion_matrix(ts.T)
-        Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed = \
-            self._eigendecompose(Pmatrix)
+        Tm = ts.shape[1]  # total concatenated timepoints
+
+        # ------------------------------------------------------------------
+        # Eq. (10):
+        # \hat{W}_{ij} = exp( i * ||x_i - x_j||^2 / sigma )  ∈ ℂ^{Tm × Tm}
+        # ------------------------------------------------------------------
+        Kmatrix = np.zeros((Tm, Tm), dtype=complex)
+        for i in range(Tm):
+            for j in range(Tm):
+                dij2 = np.sum((ts[:, i] - ts[:, j]) ** 2)
+                Kmatrix[i, j] = np.exp((0 + 1j) * dij2 / self.epsilon)
+
+        # ------------------------------------------------------------------
+        # Eq. (11):
+        # \hat{Q}(t) = | \hat{W}^t |^2  ∈ ℝ^{Tm × Tm}
+        # ------------------------------------------------------------------
+        Ktr_t = LA.matrix_power(Kmatrix, self.t_horizon)
+        Ptr_t = np.square(np.abs(Ktr_t))
+
+        # ------------------------------------------------------------------
+        # Eq. (12):
+        # \hat{D}_{ii} = sum_j \hat{Q}_{ij}
+        # ------------------------------------------------------------------
+        Dmatrix = np.diag(np.sum(Ptr_t, axis=1))
+
+        # ------------------------------------------------------------------
+        # Eq. (13):
+        # \hat{P}(t) = \hat{D}^{-1} \hat{Q}(t)  ∈ ℝ^{Tm × Tm}
+        # ------------------------------------------------------------------
+        Pmatrix = LA.inv(Dmatrix) @ Ptr_t
+
+        # ------------------------------------------------------------------
+        # Eigendecomposition
+        # \hat{Ψ} = [\hat{φ}_1, ..., \hat{φ}_N]  ∈ ℝ^{Tm × Tm}
+        # ------------------------------------------------------------------
+        LL, VV = LA.eig(Pmatrix)  # eigenvalues, eigenvectors
+
+        if self.sort_eigenvectors:
+            # Sort by descending eigenvalue magnitude (not guaranteed by eig)
+            order = np.argsort(np.abs(LL))[::-1]
+            LL = LL[order]
+            VV = VV[:, order]
+            # Sanity check: the dominant eigenvalue should be ≈ 1 for a
+            # row-stochastic matrix
+            if not np.isclose(np.abs(LL[0]), 1.0, atol=1e-3):
+                warnings.warn(
+                    f"Dominant eigenvalue magnitude is {np.abs(LL[0]):.4f}, "
+                    "expected ≈ 1.0 for a row-stochastic matrix. "
+                    "Check your input data and epsilon parameter.",
+                    RuntimeWarning,
+                    stacklevel=3,
+                )
+
+        # Skip the trivial first eigenvector (constant / stationary dist.)
+        # Select eigenvectors 2 .. k+1  →  indices 1 .. k
+        # \hat{Ψ}_reduced = [\hat{φ}_2, ..., \hat{φ}_{k+1}]  ∈ ℝ^{Tm × k}
+        selected_idx = slice(1, self.k + 1)
+        eigenvalues_k = np.abs(LL[selected_idx])          # (k,)  real, positive
+        LLMatr_k = np.diag(eigenvalues_k)                 # (k, k)
+
+        # ------------------------------------------------------------------
+        # Eq. (14):
+        # \hat{P}(t) = \hat{Ψ} \hat{Λ} \hat{Ψ}^T
+        # Phi = Ψ_k * |Λ_k|  ∈ ℝ^{Tm × k}
+        # ------------------------------------------------------------------
+        # Raw (unscaled) eigenvectors — stored separately for Nyström.
+        # The standard Nyström formula requires unscaled eigenvectors;
+        # Phi below is the eigenvalue-scaled version used everywhere else.
+        eigenvectors_k = np.real(VV[:, selected_idx])      # (Tm, k)  unscaled
+
+        # Signed eigenvalues: used in the Nyström formula p_row @ V / λ.
+        # IMPORTANT: eigenvalues can be negative real — np.abs() would
+        # break the sign in the Nyström formula. We store both:
+        #   eigenvalues_k        = |λ|  for scaling Phi (Eq. 14 uses abs)
+        #   eigenvalues_k_signed = λ    for Nyström (must preserve sign)
+        eigenvalues_k_signed = np.real(LL[selected_idx])   # (k,) signed, real part
+
+        Phi = eigenvectors_k @ LLMatr_k                    # (Tm, k)  scaled (Eq. 14)
+
         return Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed, Pmatrix, Ptr_t
 
+    # ------------------------------------------------------------------
+    # CHARM core: nets() — parcel-space basis recovery
+    # ------------------------------------------------------------------
+
+    def _nets(self, Phi: np.ndarray, ts: np.ndarray) -> np.ndarray:
+        """
+        Convert the timepoint-space embedding Φ into a parcel-space basis.
+
+        Correlates each latent dimension (column of Φ) with each parcel's
+        BOLD timeseries, then L2-normalises each column.
+
+        Parameters
+        ----------
+        Phi : np.ndarray, shape (Tm, k)
+            Latent embedding from ``_latent()``.
+        ts  : np.ndarray, shape (N, Tm)
+            The same BOLD signal used to compute Phi.
+
+        Returns
+        -------
+        conet : np.ndarray, shape (N, k)
+            Parcel-space basis. Equivalent to PCA's components_ transposed.
+        """
+        N = ts.shape[0]
+
+        zPhiA = stats.zscore(ts.T, ddof=1)    # (Tm, N)  z-scored BOLD
+        zPhi  = stats.zscore(Phi,  ddof=1)    # (Tm, k)  z-scored latent coords
+
+        # Correlation between each latent dim and each parcel BOLD signal
+        # conet[seed, red] = corr( zPhi[:, red], zPhiA[:, seed] )
+        conet2 = zPhi.T @ zPhiA / (zPhi.shape[0] - 1)  # (k, N),  vectorised corrcoef
+        conet2 = conet2.T                                # (N, k)
+
+        # L2-normalise each column (latent dimension)
+        conet = conet2 / LA.norm(conet2, axis=0, keepdims=True)  # (N, k)
+        return conet
 
     # ------------------------------------------------------------------
     # Nyström out-of-sample extension
@@ -327,16 +435,62 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         -------
         Z : np.ndarray, shape (k, T_new)
         """
-        # Delegates to BaseCHARMKernel._nystrom_transform_shared()
-        return self._nystrom_transform_shared(
-            X_new              = X_new,
-            X_fit              = self._X_fit,
-            Phi                = self._Phi,
-            eigenvalues_signed = self._eigenvalues_signed,
-            Pmatrix            = self._Pmatrix,
-            is_same_data       = False,
-            use_exact_rows     = use_exact_rows,
-        )
+        X_train = self._X_fit        # (N, Tm)  validated training data
+        T_new   = X_new.shape[1]
+        Z       = np.zeros((self.k, T_new))
+
+        for t in range(T_new):
+
+            # ── EXACT PATH: use stored Pmatrix row ────────────────────────
+            # Valid when X_new is the training data (force_nystrom=True).
+            # Reads the exact normalised diffusion row computed during fit(),
+            # which is what LA.matrix_power + D^{-1} produced — no approximation.
+            if use_exact_rows:
+                p_row = self._Pmatrix[t, :]                 # (Tm,) exact row
+
+            # ── APPROXIMATE PATH: genuinely new timepoint ─────────────────
+            else:
+                x = X_new[:, t]                             # (N,)
+
+                # Eq. (10): kernel row  K[j] = exp(i * ||x - x_j||^2 / sigma)
+                diffs2 = np.sum((X_train - x[:, None]) ** 2, axis=0)  # (Tm,)
+                k_row  = np.exp(1j * diffs2 / self.epsilon)            # (Tm,) complex
+
+                # Eq. (11) approximation: element-wise power.
+                # Exact would require O(Tm^2 * N) to recompute the full matrix.
+                # Error grows with t_horizon; exact when t_horizon=1.
+                k_row_t = k_row ** self.t_horizon                      # (Tm,) complex
+
+                # Eq. (11): |K^t|^2
+                q_row = np.abs(k_row_t) ** 2                           # (Tm,) real
+
+                # Eq. (12-13): row-normalise  P = D^{-1} Q
+                d = q_row.sum()
+                if d == 0:
+                    warnings.warn(
+                        f"Zero row-sum at timepoint t={t} in Nyström kernel. "
+                        "This timepoint may lie far outside the training manifold. "
+                        "Consider increasing epsilon or checking the input data.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
+                    d = 1.0
+                p_row = q_row / d                                      # (Tm,) real
+
+            # Nyström formula (correct, using raw unscaled eigenvectors):
+            #   φ̃ᵢ(x) = (1/λᵢ) · p_row · φᵢ   for each latent dim i
+            # Vectorised: (Tm,) @ (Tm, k) → (k,)  then / (k,) → (k,)
+            # Nyström formula — correct derivation:
+            # Phi = Re(V) * |λ|  (Eq. 14), and P @ Re(V) = Re(V) * λ_signed
+            # Therefore: P[t,:] @ Phi = (P @ Re(V))[t,:] * |λ|
+            #                         = Re(V)[t,:] * λ_signed * |λ|
+            # And:        Phi[t,:]    = Re(V)[t,:] * |λ|
+            # So:    (P[t,:] @ Phi) / λ_signed = Re(V)[t,:] * |λ| = Phi[t,:]
+            # i.e. the correct formula is (p_row @ Phi) / eigenvalues_signed.
+            # Using raw eigenvectors or |λ| would both give wrong results.
+            Z[:, t] = (p_row @ self._Phi) / self._eigenvalues_signed
+
+        return Z
 
     # ------------------------------------------------------------------
     # Override inverse_transform: explicit caveats vs PCA
@@ -429,6 +583,20 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         Runs both the reconstruction and several quality metrics, prints
         a human-readable summary, and warns if quality is below threshold.
 
+        Typical Usage
+        -------------
+        reducer = CHARMReducer(k=7, epsilon=300, t_horizon=2)
+        reducer.fit(X_concat)
+        # Check quality before trusting the reconstruction
+        metrics = reducer.check_reconstruction_quality(X_concat)
+        # CHARM reconstruction quality  (k=7)
+        #   Explained variance : 0.183  (moderate)
+        #   Pearson r          : 0.421
+        #   conet orthogonality error : 2.347  (PCA = 0.0, CHARM typically > 0)
+        # Then use it
+        Z_new = reducer.transform(X_new)
+        X_hat = reducer.inverse_transform(Z_new)
+
         Parameters
         ----------
         X : np.ndarray, shape (N, T)
@@ -445,7 +613,6 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
             'conet_orthogonality': float   — ||conet.T @ conet - I||_F
                                              (0 = orthonormal, like PCA)
         """
-        from scipy import stats as _stats
 
         self._check_is_fitted()
         X       = self._validate_input(X)
@@ -456,7 +623,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         ev = self.score(X)
 
         # Pearson r between original and reconstructed (flattened)
-        r, _ = _stats.pearsonr(X.ravel(), X_hat.ravel())
+        r, _ = stats.pearsonr(X.ravel(), X_hat.ravel())
 
         # How far conet is from orthonormal
         # Perfect orthonormality (PCA): ||W.T @ W - I||_F = 0

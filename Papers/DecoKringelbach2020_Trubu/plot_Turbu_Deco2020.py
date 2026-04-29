@@ -85,6 +85,8 @@ def run():
     if os.path.exists(dataPath):
         turbus_ = load_turbu(dataPath)
         plotTurbu(lambdas, turbus_, _observations)
+    else:
+        print(f'No turbulence data ({dataPath}))')
 
 
 # =======================================================================
