@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "LibBrain"
+version = "0.1.0"
+description = "A library for whole-brain computational neuroscience modelling"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Core dependencies — add/remove as needed
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "scikit-learn>=1.2",
+    "matplotlib>=3.7",
+    "pandas>=2.0",
+    "h5py>=3.8",
+    "statsmodels>=0.14",
+]
+
+[project.optional-dependencies]
+# Install with: pip install -e "git+...#egg=LibBrain[full]"
+full = [
+    "neuronumba @ git+https://github.com/neich/neuronumba.git#egg=neuronumba&subdirectory=src",
+]
+
+[tool.setuptools.packages.find]
+# Tell setuptools which folders are Python packages to install.
+# Every folder listed here (and its subfolders with __init__.py) will be
+# importable after installation.
+where = ["."]       # search from repo root
+include = [
+    "Neuroreduce*",
+    "DataLoaders*",
+    "Papers*",
+    "RSN*",
+    "Utils*",
+    "Plotting*",
+    "tools*",
+]
+exclude = [
+    "*.tests",
+    "*.tests.*",
+    "*._Data_Produced",
+    "*._Results",
+    "*.__pycache__",
+]
+
+[tool.setuptools.package-data]
+# Include any non-Python files your packages need
+"*" = ["*.mat", "*.csv", "*.txt", "*.json"]
+
+[tool.pytest.ini_options]
+# When running pytest from the repo root, find all tests automatically
+testpaths = [
+    "Neuroreduce/tests",
+    "Papers/Deco2025_CHARM_SC/tests",
+]
