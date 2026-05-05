@@ -29,6 +29,7 @@ class Compact_Simulator(CompactBoldSimulatorBase):
     model = Attr(default=None, doc="If need to custom configure the model. It must be a Montbrio model")
     obs_var = Attr(default="r_e", doc="Observation variable")
     use_bold = Attr(default=True, doc="Perform a BOLD simulation, or directly return the activity")
+    sampling_period = Attr(default=1.0, doc="Sampling period from the raw signal data in milliseconds")
 
     def _generate_bold(
         self,
@@ -53,12 +54,12 @@ class Compact_Simulator(CompactBoldSimulatorBase):
         monitor = None
         if self.use_temporal_avg_monitor:
             monitor = TemporalAverage(
-                period=(self.tr / 1000.0),
+                period=self.sampling_period,
                 monitor_vars=model.get_var_info([obs_var])
             )
         else:
             monitor = RawSubSample(
-                period=(self.tr / 1000.0),
+                period=self.sampling_period,
                 monitor_vars=model.get_var_info([obs_var])
             )
         sim = Simulator(
