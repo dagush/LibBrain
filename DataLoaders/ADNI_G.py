@@ -22,7 +22,7 @@ from DataLoaders.baseDataLoader import DataLoader
 # ================================================================================================================
 class ADNI_G(DataLoader):
     def __init__(self, path=None,
-                 discard_AD_ABminus=True,
+                 discard_AD_ABminus=False,
                  use_pvc=True):
 
         self.use_pvc = use_pvc
@@ -41,6 +41,7 @@ class ADNI_G(DataLoader):
 
         self._load_metadata()
         self._loadTimeseries()
+        self._loadSC()
         self._loadBurdenData()
 
         if discard_AD_ABminus:
@@ -55,6 +56,7 @@ class ADNI_G(DataLoader):
     def set_basePath(self, path):
         self.base_folder = path + "ADNI-G/"
         self.timeseries_folder = self.base_folder + "DBS80/tseries/"
+        self.Avg_SC_file = self.base_folder + "DBS80/SC/HCn_connectome_dbs80.mat"
 
         # Reuse ADNI_B structure for metadata and PET
         self.meta_path = self.base_folder + "demographics.csv"
@@ -85,7 +87,7 @@ class ADNI_G(DataLoader):
         self.meta_information2 = pd.read_csv(self.meta_path2)
 
     # ------------------------------------------------------------------------------------------------------------
-    # Load timeseries (NEW PART)
+    # Load timeseries
     # ------------------------------------------------------------------------------------------------------------
     def _loadTimeseries(self):
         files = glob.glob(self.timeseries_folder + "sub-*_dbs80_timeseries.mat")
@@ -121,6 +123,13 @@ class ADNI_G(DataLoader):
                     self.classification[full_subj_id] = self.meta_information2[locator2]['Group'].values[0]
                 else:
                     print(f'no PTID for {BIDS_id}')
+
+    # ------------------------------------------------------------------------------------------------------------
+    # Load average SC
+    # ------------------------------------------------------------------------------------------------------------
+    def _loadSC(self):
+        SCf = hdf.loadmat(self.Avg_SC_file)
+        self.SC = SCf['SC']
 
     # ------------------------------------------------------------------------------------------------------------
     # Load Amyloid / Tau (same philosophy as ADNI_B)
@@ -168,6 +177,10 @@ class ADNI_G(DataLoader):
 
         return res
 
+    def get_AvgSC_ctrl(self, normalized='maxSC', normalizationFactor=0.2):  # returns a SINGLE SC matrix (average over control subjects)
+        normSC = self._normalize_SC(self.SC, normalizationMethod=normalized, normalizationFactor=normalizationFactor)
+        return normSC
+
 
 # ================================================================================================================
 print('_Data_Raw loading done!')
@@ -178,7 +191,9 @@ if __name__ == '__main__':
     sujes = baseDL.get_classification()
     gCtrl = baseDL.get_groupSubjects('HC')
     s1 = baseDL.get_subjectData(gCtrl[0])
+    avg_SC = baseDL.get_AvgSC_ctrl()
     print('done DBS80! ;-)')
+    # -- just a quick test:
     # # ---- test alternative classification
     # DL = ADNI_B_Alt(baseDL, ['HC(AB-)', 'HC(AB+)', 'MCI(AB+)', 'AD(AB+)'])  # all subjects, irregardly if they have burden or not
     # sujes_alt = DL.get_classification()

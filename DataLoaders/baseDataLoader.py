@@ -95,10 +95,17 @@ class DataLoader():
     def __computeAvgSC_HC_Matrix(self, ctrl_label):
         HC = self.get_groupSubjects(ctrl_label)
         sumMatrix = np.zeros((self.N(), self.N()))
+        count = 0
         for subject in HC:
-            SC = self.get_subjectData(subject)[subject]['SC']
+            subjectData = self.get_subjectData(subject)[subject]
+            if 'SC' not in subjectData:
+                continue
+            SC = subjectData['SC']
             sumMatrix += SC
-        return sumMatrix / len(HC)  # but we normalize it afterwards, so we probably do not need this...
+            count += 1
+        if count == 0:
+            raise ValueError('No Avg SC matrix available')
+        return sumMatrix / count  # but we normalize it afterward, so we probably do not need this...
 
     # ===================== Normalize a SC matrix
     # Implements the two most basic methods, for any other one, should be overwritten...
