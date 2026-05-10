@@ -39,7 +39,7 @@ class ADNI_B2(DataLoader):
         supported = {'dbs80': 80, 'Glasser360': 360, 'Schaefer100': 100, 'Schaefer400': 400, 'Schaefer1000':1000}
         if parcellation not in supported:
             raise ValueError(f'Invalid parcellation: {parcellation}. Supported parcellations: {supported}')
-        self.parcellations_with_burden = ['Glasser360', 'Schaefer400']
+        self.parcellations_with_burden = ['dbs80', 'Glasser360', 'Schaefer400']
         self.parcellations_with_GMV = ['Schaefer400']
         self.parcellation = parcellation
         self.use_pvc = use_pvc
@@ -221,7 +221,7 @@ print('_Data_Raw loading done!')
 # =========================  debug
 if __name__ == '__main__':
     # ---- test Schaefer 400
-    baseDL = ADNI_B2(parcellation='Glasser360')  # Glasser360 / dbs80 / Schaefer100 / Schaefer400 / Schaefer1000
+    baseDL = ADNI_B2(parcellation='dbs80')  # Glasser360 / dbs80 / Schaefer100 / Schaefer400 / Schaefer1000
     sujes = baseDL.get_classification()
     gCtrl = baseDL.get_groupSubjects('HC+')
     s1 = baseDL.get_subjectData(gCtrl[0])
