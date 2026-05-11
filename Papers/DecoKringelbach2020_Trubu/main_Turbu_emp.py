@@ -50,6 +50,7 @@ def save_results(all_results, path):
     df.to_csv(path, index=False)
     print(f"Results saved tp {path}")
 
+
 @decorators.loadOrCompute
 def from_fMRI(Turbu, ts):
     return Turbu.from_fmri(ts)

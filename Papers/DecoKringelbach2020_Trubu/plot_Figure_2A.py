@@ -13,6 +13,8 @@
 # Code by Gustavo Deco, 2020.
 # Translated by Marc Gregoris, May 21, 2024
 # Refactored by Gustavo Patow, June 9, 2024
+#
+# To run this code, before we need the results from main_Turbu_emp.py
 # =======================================================================
 import os
 import pandas as pd
