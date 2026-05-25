@@ -8,17 +8,30 @@ import scipy.io as sio
 from matplotlib import pyplot as plt
 
 # If need to debug numba code, uncomment this
-from numba import config
-config.DISABLE_JIT = True
+# from numba import config
+# config.DISABLE_JIT = True
 
 from neuronumba.tools.filters import BandPassFilter
 
-from simulator.models.OrnsteinUhlenbeck import OrnsteinUhlenbeck, Matrix_Stabilizer
 from simulator.models import Deco2014
 from compact_generic_bold_model import Compact_Simulator
 
-from observables.fc import FC
-from observables.linear.linearfc import LinearFC
+from neuronumba.observables import FC
+from neuronumba.observables.linear.linearfc import LinearFC
+
+
+def normalize_FC(full_fc, res_linear):
+    # ------- We have a problem with hopf linear scaling, this is to check/debug that:
+    np.fill_diagonal(full_fc, 0.0)
+    full_fc_max = np.max(full_fc)
+    linear_fc = np.array(res_linear)
+    np.fill_diagonal(linear_fc, 0.0)
+    linear_fc_max = np.max(linear_fc)
+    linear_fc_scale = full_fc_max / linear_fc_max
+
+    linear_fc *= linear_fc_scale
+    # np.fill_diagonal(linear_fc, 0.0)
+    return linear_fc, linear_fc_scale
 
 
 def filer_fMRI(fMRI):  # fMRI in (time, RoIs) format
@@ -78,9 +91,9 @@ def run():
 
     tr = 2.0
     dt = 0.1  # milliseconds (1e-4 seconds)
-    Tmax_vol = 100
+    Tmax_vol = 440
     T_sim_seconds = (Tmax_vol * tr)
-    T_warm_seconds = 20
+    T_warm_seconds = 100
     tr = 2000.0
 
     g = 1.0
@@ -120,15 +133,18 @@ def run():
     # ====== Linear pipeline
     J = model.get_jacobian(sc)
     Q = model.get_noise_matrix(sigma=sigma,N=sc.shape[0])
-    fc_lin = LinearFC(lyap_method='scipy', A=-J, Qn=Q, Vars=1)
+    fc_lin = LinearFC(lyap_method='scipy', A=J, Qn=Q, Vars=model.n_state_vars)
     lin_FC = fc_lin.compute()['FC']
+
+    linear_fc, linear_fc_scale = normalize_FC(sim_FC, lin_FC)
+    print(f'Linear FC scale: {linear_fc_scale}')
 
     # fig, axs = plt.subplots(1)
     # fig.suptitle(f'Result for model Ornstein-Uhlenbeck (g={g})')
     # axs.plot(np.arange(simulated_bold.shape[0]), simulated_bold)
     # plt.show()
 
-    fig, axs = plt.subplots(2)
+    fig, axs = plt.subplots(nrows=1, ncols=2)
     fig.suptitle(f'FC for model Ornstein-Uhlenbeck (g={g})')
     axs[0].imshow(sim_FC)
     axs[1].imshow(lin_FC)

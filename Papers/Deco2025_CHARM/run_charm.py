@@ -76,7 +76,7 @@ KFOLD      = 1000       # number of cross-validation folds
 # Corresponds to filterAndConcatSubj() in the original code.
 # =============================================================================
 
-class DataLoader:
+class Load_Data:
     """
     Loads, filters, and concatenates HCP BOLD timeseries for a set of
     condition groups and subjects.
@@ -91,7 +91,7 @@ class DataLoader:
         Condition group names passed to HCP() (e.g. ['REST1', 'EMOTION']).
     discard : tuple or None
         (subject_id, group) to discard, e.g. (553, 'EMOTION').
-        Matches the original DL.discardSubject() call.
+        Matches the original DL.discardSubjects() call.
     n_subjects : int
         Number of subjects to use per group.
     tmax : int
@@ -115,7 +115,7 @@ class DataLoader:
         # Initialise the HCP data loader (your existing infrastructure)
         self._DL = HCP.HCP(chosenDatasets=chosen_datasets)
         if discard is not None:
-            self._DL.discardSubject(discard)
+            self._DL.discardSubjects(discard)
 
         # Bandpass filter — same parameters as original
         # TR is read from the dataloader to stay consistent with HCP metadata
@@ -194,9 +194,9 @@ def run():
     print("Step 1: Loading and preprocessing data")
     print("=" * 60)
 
-    loader = DataLoader(
+    loader = Load_Data(
         chosen_datasets = ['REST1', 'EMOTION'],
-        discard         = (553, 'EMOTION'),   # subject with fewer timepoints
+        discard         = [(553, 'EMOTION')],   # subjects with fewer timepoints
         n_subjects      = NSUB,
         tmax            = Tmax,
         cut             = CUT,

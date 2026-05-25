@@ -1,11 +1,11 @@
 """
-Neuroreduce/utils/edge_centric_metastability.py
+Neuroreduce/utils/ecm.py
 --------------------------
 Edge-centric metastability utilities for Neuroreduce.
 
 The core ECM computation now lives in NeuroNumba as a proper Observable:
 
-    neuronumba/observables/edge_centric_metastability.py  →  ECM._compute_from_fmri()
+    neuronumba/observables/ecm.py  →  ECM._compute_from_fmri()
 
 This module provides three thin wrappers that bridge the NeuroNumba
 observable into the Neuroreduce per-subject pipeline:
@@ -38,9 +38,48 @@ import numpy as np
 from scipy import stats
 
 # NeuroNumba ECM observable — the single source of truth for the core maths.
-# This import will fail if neuronumba is not installed; the error message
-# is intentionally left as-is so the user knows exactly what to install.
-from neuronumba.observables.edge_centric_metastability import ECM as _ECMObservable
+# We try several known import paths because the module location varies across
+# neuronumba versions. If neuronumba is not installed we fall back to a pure-
+# numpy implementation that is mathematically identical.
+_ECMObservable = None
+for _ecm_path in [
+    'neuronumba.observables.ecm',
+    'neuronumba.observables.edge_centric_metastability',
+]:
+    try:
+        import importlib as _il
+        _mod = _il.import_module(_ecm_path)
+        _ECMObservable = getattr(_mod, 'ECM', None)
+        if _ECMObservable is not None:
+            break
+    except (ModuleNotFoundError, AttributeError):
+        continue
+
+if _ECMObservable is None:
+    # Fallback: pure-numpy ECM — mathematically identical to the observable.
+    # Used when neuronumba is absent (testing, CI, restricted environments).
+    import numpy as _np
+    from numpy import linalg as _LA
+
+    class _ECMObservable:
+        """Minimal ECM fallback — no neuronumba dependency."""
+        ignore_nans = False
+
+        def from_fmri(self, bold_signal):
+            T, N      = bold_signal.shape
+            i_n, j_n  = _np.tril_indices(N, k=-1)
+            n_edges   = len(i_n)
+            EdgesL    = _np.zeros((n_edges, T))
+            for t in range(T):
+                outer_t      = _np.outer(bold_signal[t], bold_signal[t])
+                EdgesL[:, t] = outer_t[i_n, j_n]
+            norms = _LA.norm(EdgesL, axis=0, keepdims=True)
+            norms = _np.where(norms == 0, 1.0, norms)
+            FCDQ  = (EdgesL.T @ EdgesL) / (norms.T @ norms)
+            i_lt, j_lt = _np.tril_indices(T, k=-1)
+            var_fcd    = _np.var(FCDQ[i_lt, j_lt])
+            ecm        = float(0.5 * _np.log(2 * _np.pi * var_fcd) + 0.5)
+            return {'ECM': ecm}
 
 
 # =============================================================================

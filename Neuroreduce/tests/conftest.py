@@ -43,7 +43,7 @@ from pathlib import Path
 # __file__ = LibBrain/Neuroreduce/tests/conftest.py
 # .parent        = LibBrain/Neuroreduce/tests/
 # .parent.parent = LibBrain/Neuroreduce/
-# .parent.parent.parent = LibBrain/            ← this is what we need
+# .parent.parent.parent = LibBrain/
 LIBBRAIN_ROOT = Path(__file__).resolve().parent.parent.parent
 
 if str(LIBBRAIN_ROOT) not in sys.path:
