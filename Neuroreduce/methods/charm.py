@@ -103,25 +103,69 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         t_horizon: int = 2,
         whiten: bool = False,
         sort_eigenvectors: bool = True,
+        kernel_type: str = 'quantum',
     ):
+        """
+        Parameters
+        ----------
+        k : int
+            Number of latent dimensions (LATDIM in the paper).
+        epsilon : float
+            Kernel bandwidth σ. Paper defaults: 300 (quantum), 400 (classical).
+        t_horizon : int
+            Diffusion horizon τ. Paper defaults: 2 (quantum), 1 (classical).
+            For quantum: K is raised to this matrix power before |·|².
+            For classical: τ enters only via eigenvalue scaling (λ^τ) and
+            the Nyström denominator (Λ^{-τ}) — not the kernel itself.
+        whiten : bool
+            If True, z-score each row of the projected output across time.
+        sort_eigenvectors : bool
+            Sort eigenpairs by descending |λ| before selecting top-k.
+        kernel_type : {'quantum', 'classical'}
+            Which kernel variant to use:
+
+            ``'quantum'`` (default):
+                K[i,j] = exp(i · d²/σ), then Ptr = |K^τ|².
+                Full embedding scales Φ by |λ|.
+                Nyström denominator: λ  (no τ power).
+                Paper params: ε=300, τ=2.
+
+            ``'classical'``:
+                K[i,j] = exp(-d²/σ), real and symmetric.
+                No matrix power — τ only scales eigenvalues.
+                Full embedding scales Φ by λ^τ.
+                Nyström denominator: λ^τ.
+                Paper params: ε=400, τ=1.
+        """
         super().__init__(k=k, whiten=whiten)
         self.epsilon = epsilon
         self.t_horizon = t_horizon
         self.sort_eigenvectors = sort_eigenvectors
 
+        if kernel_type not in ('quantum', 'classical'):
+            raise ValueError(
+                f"kernel_type must be 'quantum' or 'classical', got {kernel_type!r}"
+            )
+        self.kernel_type = kernel_type
+
         # Set during fit
         self._X_fit_original: Optional[np.ndarray] = None  # pre-validation ref for identity check
         self._X_fit: Optional[np.ndarray] = None           # validated (float32) copy
-        self._Phi: Optional[np.ndarray] = None          # (Tm, k)  eigenvalue-scaled embedding
-        self._eigenvectors: Optional[np.ndarray] = None # (Tm, k)  raw (unscaled) eigenvectors
-        self._eigenvalues: Optional[np.ndarray] = None        # (k,) |λ| magnitudes, for Phi scaling
-        self._eigenvalues_signed: Optional[np.ndarray] = None # (k,) signed λ, for Nyström formula
-        self._conet: Optional[np.ndarray] = None        # (N, k)   parcel-space basis
-        self._Pmatrix: Optional[np.ndarray] = None      # (Tm, Tm) row-normalised diffusion matrix
-        self._Ptr_t: Optional[np.ndarray] = None        # (Tm, Tm) |K^t|^2 before normalisation
-        # Both _Pmatrix and _Ptr_t are stored because:
-        #   - _Pmatrix rows give EXACT Nyström rows for training timepoints
-        #   - _Ptr_t is needed for out-of-sample normalisation (Eq. 12-13)
+        self._Phi: Optional[np.ndarray] = None             # (Tm, k) eigenvalue-scaled embedding
+        self._eigenvectors: Optional[np.ndarray] = None    # (Tm, k) raw (unscaled) eigenvectors
+        self._eigenvalues: Optional[np.ndarray] = None     # (k,) |λ| magnitudes
+        self._eigenvalues_signed: Optional[np.ndarray] = None   # (k,) signed λ
+        self._eigenvalues_nystrom: Optional[np.ndarray] = None  # (k,) Nyström denominator:
+        # _eigenvalues_nystrom = λ^τ (classical) or λ (quantum).
+        # Separating this from _eigenvalues_signed avoids confusion:
+        # the Nyström formula always divides by _eigenvalues_nystrom,
+        # but the exponent differs between kernel types.
+        self._conet: Optional[np.ndarray] = None           # (N, k) parcel-space basis
+        self._Pmatrix: Optional[np.ndarray] = None         # (Tm, Tm) row-normalised diffusion matrix
+        self._Ptr_t: Optional[np.ndarray] = None           # (Tm, Tm) raw kernel before normalisation:
+        # For quantum: |K^τ|²    For classical: K (real Gaussian)
+        # Either way, _Ptr_t[T_tr:, :T_tr] is the correct cross-block for
+        # evaluate_fc_cv() — the left-multiplier in the Nyström reconstruction.
 
     # ------------------------------------------------------------------
     # Core interface
@@ -153,12 +197,13 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         self._X_fit = X                      # validated (float32) copy
 
         # Compute latent embedding Φ ∈ ℝ^(Tm × k).
-        # _latent() now returns 5 values; the extra two (raw eigenvectors and
-        # Ptr_t) are needed for a numerically correct Nyström extension.
+        # _latent() returns 7 values; eigenvalues_nystrom is the correct
+        # Nyström denominator for this kernel type (λ^τ classical, λ quantum).
         (self._Phi,
          self._eigenvectors,
          self._eigenvalues,
          self._eigenvalues_signed,
+         self._eigenvalues_nystrom,
          self._Pmatrix,
          self._Ptr_t) = self._latent(X)
 
@@ -248,7 +293,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
 
     def _latent(
         self, ts: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Compute the CHARM latent space embedding.
 
@@ -264,19 +309,48 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         -------
         Phi : np.ndarray, shape (Tm, k)
             Latent embedding: first k non-trivial eigenvectors scaled by
-            their eigenvalues (Eq. 14).
-        eigenvalues : np.ndarray, shape (k,)
-            Eigenvalues corresponding to the selected eigenvectors.
+            their eigenvalues (Eq. 14 for quantum; λ^τ scaling for classical).
+        eigenvectors_k : np.ndarray, shape (Tm, k)
+            Raw (unscaled) eigenvectors — used by Nyström.
+        eigenvalues_k : np.ndarray, shape (k,)
+            Absolute eigenvalue magnitudes |λ|.
+        eigenvalues_k_signed : np.ndarray, shape (k,)
+            Signed real eigenvalues λ.
+        eigenvalues_nystrom : np.ndarray, shape (k,)
+            Correct Nyström denominator for this kernel type:
+            λ^τ (classical) or λ (quantum).
         Pmatrix : np.ndarray, shape (Tm, Tm)
             Row-normalised diffusion matrix (stored for Nyström extension).
+        Ptr_t : np.ndarray, shape (Tm, Tm)
+            Raw kernel before normalisation: K (classical) or |K^τ|² (quantum).
+            Cross-block Ptr_t[T_tr:, :T_tr] is the left-multiplier in
+            evaluate_fc_cv() for both kernel types.
         """
         # Delegates to BaseCHARMKernel shared methods.
         # Input: ts.T gives (Tm, N) — rows = timepoints, matching
         # the convention d²_ij = ||x_i - x_j||² between BOLD columns.
-        Pmatrix, Ptr_t, _ = self._build_diffusion_matrix(ts.T)
+        Pmatrix, Ptr_t, _ = self._build_diffusion_matrix(
+            ts.T, kernel_type=self.kernel_type,
+        )
+
+        # Eigenvalue scaling differs between kernel types:
+        #   quantum  → Φ[:,d] *= |λ_d|      ('abs')
+        #   classical → Φ[:,d] *= λ_d^τ     ('power')
+        eigenvalue_scale = 'power' if self.kernel_type == 'classical' else 'abs'
+
         Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed = \
-            self._eigendecompose(Pmatrix)
-        return Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed, Pmatrix, Ptr_t
+            self._eigendecompose(Pmatrix, eigenvalue_scale=eigenvalue_scale)
+
+        # Nyström denominator — differs between kernel types:
+        #   quantum  → divide by λ    (no extra power)
+        #   classical → divide by λ^τ
+        if self.kernel_type == 'classical':
+            eigenvalues_nystrom = eigenvalues_k_signed ** self.t_horizon
+        else:
+            eigenvalues_nystrom = eigenvalues_k_signed  # quantum: just λ
+
+        return Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed, \
+               eigenvalues_nystrom, Pmatrix, Ptr_t
 
 
     # ------------------------------------------------------------------
@@ -328,15 +402,168 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         Z : np.ndarray, shape (k, T_new)
         """
         # Delegates to BaseCHARMKernel._nystrom_transform_shared()
+        # _eigenvalues_nystrom is the correct Nyström denominator:
+        #   classical: λ^τ    quantum: λ
         return self._nystrom_transform_shared(
             X_new              = X_new,
             X_fit              = self._X_fit,
             Phi                = self._Phi,
-            eigenvalues_signed = self._eigenvalues_signed,
+            eigenvalues_signed = self._eigenvalues_nystrom,
             Pmatrix            = self._Pmatrix,
             is_same_data       = False,
             use_exact_rows     = use_exact_rows,
         )
+
+    # ------------------------------------------------------------------
+    # CV BOLD reconstruction and FC quality (MATLAB CV block)
+    # ------------------------------------------------------------------
+
+    def evaluate_fc_cv(
+        self,
+        X:       np.ndarray,
+        t_train: int,
+    ) -> dict:
+        """
+        Reconstruct held-out BOLD and measure FC quality (the MATLAB CV block).
+
+        Must be called AFTER ``fit(X)`` — this method reuses ``_Ptr_t``
+        (the full Tm×Tm kernel computed during fit) to extract the cross-block
+        cheaply, avoiding a second O(Tm³) kernel build.
+
+        Algorithm
+        ---------
+        1. Extract training block of the stored kernel:
+               ``block_tr = _Ptr_t[:t_train, :t_train]``
+           Row-normalise to get ``P_tr``.
+
+        2. Eigendecompose ``P_tr`` with the same ``k`` and ``eigenvalue_scale``
+           as the full fit.  This gives ``Phi_tr`` (T_tr × k) and ``lambda_k``.
+
+        3. Build the Nyström reconstruction matrix:
+               ``A = Phi_tr @ Λ_inv @ Phi_tr.T``    (T_tr × T_tr)
+           where:
+               Classical:  ``Λ_inv = diag(1 / λ^τ)``
+               Quantum:    ``Λ_inv = diag(1 / λ)``
+
+        4. Reconstruct held-out BOLD for all N parcels simultaneously:
+               ``X_est = (cross_block @ (A @ X_train.T)).T``  (N × T_test)
+           where ``cross_block = _Ptr_t[t_train:, :t_train]``  (T_test × T_tr).
+           For classical, this is the raw K cross-block (matching MATLAB's
+           ``Pcv = Kmatrix(Ttrain+1:end, 1:Ttrain)``).
+           For quantum, this is the |K^τ|² cross-block.
+
+        5. Compute FC on held-out data (corrcoef over parcels):
+               ``FC_true = corrcoef(X[:, t_train:])``
+               ``FC_est  = corrcoef(X_est)``
+           and report lower-triangular Pearson r and MSE.
+
+        Why not use transform() + inverse_transform()?
+        ------------------------------------------------
+        ``transform()`` projects into embedding space via Nyström and
+        ``inverse_transform()`` maps back via ``conet @ Z``.  That path uses
+        the full-data eigenvectors (Tm modes) and the correlation-based ``conet``
+        bridge.  This method instead fits eigenvectors on the training block only
+        and directly reconstructs parcel-space BOLD — matching the MATLAB CV
+        block exactly.  The two approaches measure different things:
+          - ``inverse_transform``: embedding quality of the full-data manifold
+          - ``evaluate_fc_cv``:    out-of-sample BOLD prediction quality
+
+        Parameters
+        ----------
+        X       : np.ndarray, shape (N, Tm)
+            The same BOLD passed to ``fit()``.  Used to split train/test and
+            to compute FC.  Must NOT be re-preprocessed.
+        t_train : int
+            Number of training timepoints.  Must satisfy 0 < t_train < Tm.
+
+        Returns
+        -------
+        dict with keys:
+            'corr_fit'  : float — Pearson r between lower-tri of FC_true and FC_est
+            'err_fit'   : float — MSE between lower-tri of FC_true and FC_est
+            'fc_true'   : np.ndarray, shape (N, N) — FC on held-out timepoints
+            'fc_est'    : np.ndarray, shape (N, N) — FC from reconstructed BOLD
+        """
+        self._check_is_fitted()
+        X = self._validate_input(X)
+        N, Tm = X.shape
+
+        if not (0 < t_train < Tm):
+            raise ValueError(
+                f"t_train={t_train} must be strictly between 0 and Tm={Tm}."
+            )
+
+        # ------------------------------------------------------------------
+        # 1. Training block of the stored kernel → P_tr
+        #    _Ptr_t is (Tm, Tm): K for classical, |K^τ|² for quantum.
+        #    Subblock extraction is O(T_tr²), no new kernel build needed.
+        # ------------------------------------------------------------------
+        block_tr = self._Ptr_t[:t_train, :t_train]          # (T_tr, T_tr)
+        row_sums = block_tr.sum(axis=1)
+        row_sums = np.where(row_sums == 0, 1.0, row_sums)
+        P_tr     = block_tr / row_sums[:, None]              # (T_tr, T_tr)
+
+        # ------------------------------------------------------------------
+        # 2. Eigendecompose P_tr — same k and scale as full fit.
+        #    We want UNSCALED eigenvectors for the Nyström formula, but
+        #    eigenvalues need the correct denominator power.
+        # ------------------------------------------------------------------
+        eigenvalue_scale = 'power' if self.kernel_type == 'classical' else 'abs'
+        _, eigvecs_tr, _, evals_signed_tr = self._eigendecompose(
+            P_tr, eigenvalue_scale=eigenvalue_scale,
+        )
+        # eigvecs_tr      : (T_tr, k)  unscaled eigenvectors of P_tr
+        # evals_signed_tr : (k,)       signed real eigenvalues of P_tr
+
+        # ------------------------------------------------------------------
+        # 3. Nyström reconstruction matrix A = Φ_tr @ Λ_inv @ Φ_tr.T
+        #
+        #    Classical:  Λ_inv = diag(1 / λ^τ)   MATLAB: inv(LL.^Thorizont)
+        #    Quantum:    Λ_inv = diag(1 / λ)      MATLAB: inv(LL)  (no τ)
+        # ------------------------------------------------------------------
+        if self.kernel_type == 'classical':
+            lambda_denom = evals_signed_tr ** self.t_horizon   # λ^τ
+        else:
+            lambda_denom = evals_signed_tr                     # λ
+
+        Lambda_inv = np.diag(1.0 / lambda_denom)              # (k, k)
+        A          = eigvecs_tr @ Lambda_inv @ eigvecs_tr.T    # (T_tr, T_tr)
+
+        # ------------------------------------------------------------------
+        # 4. Vectorised reconstruction over all N parcels:
+        #        X_est = cross_block @ (A @ X_train.T)
+        #
+        #    cross_block : (T_test, T_tr)  — right cross-block of _Ptr_t
+        #    A @ X_train.T : (T_tr, N)    — precomputed once, not per-parcel
+        #    Result before transpose : (T_test, N) → X_est : (N, T_test)
+        #
+        #    MATLAB (per-parcel loop, r=1..N):
+        #        tscvestimated = Pcv * Phi * inv(LAMBDA) * Phi' * ts(r,1:Ttrain)'
+        #    Python (vectorised):
+        #        X_est.T = cross_block @ A @ X_train.T
+        # ------------------------------------------------------------------
+        cross_block = self._Ptr_t[t_train:, :t_train]         # (T_test, T_tr)
+        X_train     = X[:, :t_train]                           # (N, T_tr)
+        X_est       = (cross_block @ (A @ X_train.T)).T        # (N, T_test)
+
+        # ------------------------------------------------------------------
+        # 5. FC on held-out data and reconstruction quality
+        # ------------------------------------------------------------------
+        FC_true = np.corrcoef(X[:, t_train:])                  # (N, N)
+        FC_est  = np.corrcoef(X_est)                           # (N, N)
+
+        r_idx, c_idx = np.tril_indices(N, k=-1)
+        fc_true_lt   = FC_true[r_idx, c_idx]
+        fc_est_lt    = FC_est [r_idx, c_idx]
+        corr_fit     = float(np.corrcoef(fc_true_lt, fc_est_lt)[0, 1])
+        err_fit      = float(np.mean((fc_true_lt - fc_est_lt) ** 2))
+
+        return {
+            'corr_fit' : corr_fit,
+            'err_fit'  : err_fit,
+            'fc_true'  : FC_true,
+            'fc_est'   : FC_est,
+        }
 
     # ------------------------------------------------------------------
     # Override inverse_transform: explicit caveats vs PCA

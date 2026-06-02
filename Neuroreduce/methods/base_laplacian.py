@@ -174,8 +174,8 @@ class BaseLaplacianReducer(DimensionalityReducer):
                 f"Input matrix must be square (N×N), got {M.shape}."
             )
         N = M.shape[0]
-        if self.k >= N:
-            raise ValueError(f"k={self.k} must be < N={N}.")
+        if self.k > N:
+            raise ValueError(f"k={self.k} must be <= N={N}.")
 
         M = M.astype(np.float64, copy=True)
 

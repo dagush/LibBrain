@@ -65,12 +65,36 @@ class BaseCHARMKernel:
     def _build_diffusion_matrix(
         self,
         points: np.ndarray,
+        kernel_type: str = 'quantum',
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Build the complex CHARM diffusion matrix from a set of points.
+        Build the CHARM diffusion matrix from a set of points.
 
-        Computes pairwise squared Euclidean distances, applies the complex
-        exponential kernel, raises to t_horizon, takes |·|², row-normalises.
+        Supports two kernel variants that differ in how the kernel matrix is
+        constructed and whether a matrix power is applied.
+
+        Kernel variants
+        ---------------
+        ``'quantum'`` (default, Eq. 10-13 of the 2025 PRE paper):
+            K[i,j] = exp( i · d²_ij / σ )          complex kernel
+            Q      = |K^t|²                          matrix power then |·|²
+            P      = D⁻¹ Q                           row-stochastic
+
+            ``Ptr_t`` stores Q = |K^t|² (real).
+            ``Kmatrix`` stores K (complex).
+
+        ``'classical'`` (Compare_Analysis_singleTh.m, real Gaussian kernel):
+            K[i,j] = exp( -d²_ij / σ )              real symmetric kernel
+            P      = D⁻¹ K                           row-stochastic directly
+                                                      (no matrix power step)
+
+            ``Ptr_t`` stores K (real) — the raw kernel before normalisation.
+            This is the cross-block used in the Nyström CV reconstruction:
+                 ts_est = K_cv @ Φ_tr @ Λ^{-τ} @ Φ_tr.T @ ts_train.T
+            ``Kmatrix`` = K (same as Ptr_t for this variant).
+
+            The diffusion horizon τ (self.t_horizon) enters only via the
+            eigenvalue scaling and Nyström denominator, NOT the kernel itself.
 
         Parameters
         ----------
@@ -78,29 +102,48 @@ class BaseCHARMKernel:
             M points in D-dimensional space.
             For CHARM-BOLD: (Tm, N) — transposed BOLD, timepoints as rows.
             For CHARM-SC:   (N, 3)  — parcel centroids.
+        kernel_type : {'quantum', 'classical'}
+            Which kernel variant to build. Default: 'quantum'.
 
         Returns
         -------
         Pmatrix : np.ndarray, shape (M, M)
-            Row-stochastic diffusion matrix P = D⁻¹ |K^t|².
+            Row-stochastic diffusion matrix.
         Ptr_t : np.ndarray, shape (M, M)
-            Intermediate |K^t|² before row-normalisation (needed for Nyström).
-        Kmatrix : np.ndarray, shape (M, M), dtype complex
-            Raw complex kernel matrix K (stored for Nyström in CHARM-BOLD).
+            Raw kernel (classical) or |K^t|² (quantum) before row-normalisation.
+            Stored for Nyström CV: cross-block Ptr_t[T_tr:, :T_tr] is the
+            correct left-multiplier in both reconstruction formulas.
+        Kmatrix : np.ndarray, shape (M, M)
+            Raw kernel matrix K — complex for quantum, real for classical.
         """
+        if kernel_type not in ('quantum', 'classical'):
+            raise ValueError(
+                f"kernel_type must be 'quantum' or 'classical', got {kernel_type!r}"
+            )
+
         M = points.shape[0]
 
-        # ── Eq. (10): K[i,j] = exp( i · ||p_i - p_j||² / σ ) ────────────────
-        # Vectorised pairwise squared distances — replaces the MATLAB double loop.
-        # diff[i,j,:] = p_i - p_j  →  d2[i,j] = ||p_i - p_j||²
-        diff    = points[:, np.newaxis, :] - points[np.newaxis, :, :]  # (M,M,D)
-        d2      = np.sum(diff ** 2, axis=2)                             # (M,M)
-        Kmatrix = np.exp(1j * d2 / self.epsilon)                        # (M,M) complex
+        # ── Pairwise squared distances (shared by both variants) ───────────────
+        # Vectorised via ||a-b||² = ||a||² + ||b||² - 2aᵀb.
+        # diff approach kept for clarity; einsum is equivalent for small D.
+        diff = points[:, np.newaxis, :] - points[np.newaxis, :, :]  # (M,M,D)
+        d2   = np.sum(diff ** 2, axis=2)                             # (M,M) real
 
-        # ── Eq. (11): Q = |K^t|² ──────────────────────────────────────────────
-        # Matrix power (not element-wise) — mixes all rows and columns.
-        Ktr_t = LA.matrix_power(Kmatrix, self.t_horizon)
-        Ptr_t = np.abs(Ktr_t) ** 2                                      # (M,M) real
+        if kernel_type == 'quantum':
+            # ── Eq. (10): K[i,j] = exp( i · d²_ij / σ ) ─────────────────────
+            Kmatrix = np.exp(1j * d2 / self.epsilon)                 # (M,M) complex
+
+            # ── Eq. (11): Q = |K^t|² ─────────────────────────────────────────
+            # Matrix power (not element-wise) — mixes all rows and columns.
+            Ktr_t = LA.matrix_power(Kmatrix, self.t_horizon)
+            Ptr_t = np.abs(Ktr_t) ** 2                               # (M,M) real
+
+        else:  # 'classical'
+            # ── Real Gaussian kernel: K[i,j] = exp( -d²_ij / σ ) ─────────────
+            # No matrix power — τ only appears later in eigenvalue scaling and
+            # in the Nyström denominator (Λ^{-τ} instead of Λ^{-1}).
+            Kmatrix = np.exp(-d2 / self.epsilon)                     # (M,M) real
+            Ptr_t   = Kmatrix                                        # alias: no copy
 
         # ── Eq. (12-13): P = D⁻¹ Q  (row-stochastic) ─────────────────────────
         row_sums = np.sum(Ptr_t, axis=1)
@@ -112,7 +155,7 @@ class BaseCHARMKernel:
             )
             row_sums = np.where(row_sums == 0, 1.0, row_sums)
         D       = np.diag(row_sums)
-        Pmatrix = LA.inv(D) @ Ptr_t                                     # (M,M) real
+        Pmatrix = LA.inv(D) @ Ptr_t                                  # (M,M) real
 
         return Pmatrix, Ptr_t, Kmatrix
 
@@ -123,32 +166,57 @@ class BaseCHARMKernel:
     def _eigendecompose(
         self,
         Pmatrix: np.ndarray,
+        eigenvalue_scale: str = 'abs',
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Eigendecompose the diffusion matrix and extract the top-k modes.
 
         Skips the trivial first eigenvector (constant, eigenvalue ≈ 1)
-        and returns eigenvectors 2..k+1, scaled by their eigenvalue magnitudes
-        as in Eq. (14) of the paper.
+        and returns eigenvectors 2..k+1, scaled by their eigenvalues according
+        to ``eigenvalue_scale``.
+
+        Scaling variants
+        ----------------
+        ``'abs'`` (default, quantum CHARM, Eq. 14 of the 2025 PRE paper):
+            Φ = Re(V[:,1:k+1]) @ diag(|λ|)
+            The magnitude |λ| is used, matching the quantum kernel convention.
+
+        ``'power'`` (classical CHARM, Compare_Analysis_singleTh.m):
+            Φ = Re(V[:,1:k+1]) @ diag(λ^τ)    where τ = self.t_horizon
+            The real eigenvalue raised to the diffusion horizon τ is used,
+            matching the MATLAB line: ``Phi = Phi * (LL(...).^Thorizont)``.
+            λ^τ and |λ|^τ are identical for real positive eigenvalues (which
+            is guaranteed for the real Gaussian kernel by Perron-Frobenius).
+
+        Both variants always return the UNSCALED eigenvectors separately
+        (``eigenvectors_k``), which is what the Nyström formula requires.
 
         Parameters
         ----------
         Pmatrix : np.ndarray, shape (M, M)
             Row-stochastic diffusion matrix.
+        eigenvalue_scale : {'abs', 'power'}
+            How to scale Φ columns. Default: 'abs'.
 
         Returns
         -------
         Phi : np.ndarray, shape (M, k)
-            Eigenvalue-scaled embedding  Φ = Re(V[:,1:k+1]) @ diag(|λ|).
+            Eigenvalue-scaled embedding.
         eigenvectors_k : np.ndarray, shape (M, k)
             Raw (unscaled) real parts of the selected eigenvectors.
             Stored separately for the Nyström formula.
         eigenvalues_k : np.ndarray, shape (k,)
             Absolute eigenvalue magnitudes |λ| for the selected modes.
         eigenvalues_k_signed : np.ndarray, shape (k,)
-            Signed real eigenvalues λ. Used in the Nyström formula —
-            |λ| gives the wrong sign for negative eigenvalues.
+            Signed real eigenvalues λ. Used to build the Nyström denominator —
+            callers raise to the appropriate power (1 for quantum, τ for
+            classical) and store the result as _eigenvalues_nystrom.
         """
+        if eigenvalue_scale not in ('abs', 'power'):
+            raise ValueError(
+                f"eigenvalue_scale must be 'abs' or 'power', got {eigenvalue_scale!r}"
+            )
+
         LL, VV = LA.eig(Pmatrix)
 
         if self.sort_eigenvectors:
@@ -165,13 +233,20 @@ class BaseCHARMKernel:
 
         # Skip trivial first eigenvector (index 0), take indices 1..k
         selected_idx         = slice(1, self.k + 1)
-        eigenvalues_k        = np.abs(LL[selected_idx])          # (k,)
-        eigenvalues_k_signed = np.real(LL[selected_idx])         # (k,) signed
-        LLMatr_k             = np.diag(eigenvalues_k)            # (k,k)
+        eigenvalues_k        = np.abs(LL[selected_idx])          # (k,) |λ|
+        eigenvalues_k_signed = np.real(LL[selected_idx])         # (k,) signed λ
+        eigenvectors_k       = np.real(VV[:, selected_idx])      # (M,k) unscaled
 
-        # Eq. (14): Φ = Re(V) @ |Λ|
-        eigenvectors_k = np.real(VV[:, selected_idx])            # (M,k) unscaled
-        Phi            = eigenvectors_k @ LLMatr_k               # (M,k) scaled
+        # ── Scale Φ columns according to the chosen variant ───────────────────
+        if eigenvalue_scale == 'abs':
+            # Eq. (14): Φ = Re(V) @ |Λ|  — quantum default
+            scale = eigenvalues_k                                  # |λ|
+        else:
+            # Classical: Φ[:,d] *= λ_d^τ  (MATLAB: Phi * LL.^Thorizont)
+            scale = eigenvalues_k_signed ** self.t_horizon         # λ^τ
+
+        LLMatr_k = np.diag(scale)                                 # (k,k)
+        Phi      = eigenvectors_k @ LLMatr_k                      # (M,k) scaled
 
         return Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed
 
