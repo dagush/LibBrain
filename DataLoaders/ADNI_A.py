@@ -232,6 +232,7 @@ class ADNI_A(DataLoader):
 
     def get_AvgSC_ctrl(self, normalized=False):
         avgMatrix = computeAvgSC_HC_Matrix(classification, base_folder+"connectomes/")
+        avgMatrix = avgMatrix[:self.N(),:self.N()]
         if normalized == True or normalized == 'maxLogNode':
             return correctSC(avgMatrix)
         elif normalized == False:
