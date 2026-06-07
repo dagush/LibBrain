@@ -227,7 +227,7 @@ class ADNI_A(DataLoader):
     def get_fullGroup_data(self, group):
         groupFMRI = load_fullCohort_fMRI(classification, base_folder, cohort=group)
         for s in groupFMRI:
-            groupFMRI[s] = {'timeseries': cutTimeSeriesIfNeeded(groupFMRI[s], self.BOLD_length)}
+            groupFMRI[s] = {'timeseries': cutTimeSeriesIfNeeded(groupFMRI[s], self.BOLD_length)[:self.N()]}
         return groupFMRI
 
     def get_AvgSC_ctrl(self, normalized=False):
