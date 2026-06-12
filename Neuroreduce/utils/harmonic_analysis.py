@@ -28,6 +28,7 @@ import warnings
 import numpy as np
 from numpy import linalg as LA
 from scipy.stats import pearsonr
+from sklearn.feature_selection import mutual_info_classif
 
 from Neuroreduce.methods.base_laplacian import BaseLaplacianReducer
 
@@ -287,65 +288,23 @@ class HarmonicAnalysis:
 
     def mutual_information(
         self,
-        rsn_labels: np.ndarray,
-        n_bins:     int = 10,
+        phi,
+        rsn
     ) -> np.ndarray:
         """
-        Compute mutual information between RSN membership and each harmonic.
-
-        For each harmonic d, the per-parcel harmonic value phi_d (shape N)
-        is discretised into bins and its MI with rsn_labels (shape N) is
-        computed. Both arrays have length N — one entry per parcel — so
-        mutual_info_score receives arrays of consistent length.
-
-        The original intent (comparing RSN labels with projection strength
-        per parcel) requires operating in parcel space, not RSN space.
-
-        Parameters
-        ----------
-        rsn_labels : np.ndarray, shape (N,) of int
-            RSN label per parcel (integer class label, e.g. 0..6 for 7 RSNs).
-            Typically: np.argmax(rsn_matrix, axis=1)
-        n_bins : int
-            Number of bins for discretising continuous harmonic values.
-            Default: 10.
+        Computes the mutual information between RSNs and each eigenvector.
 
         Returns
         -------
-        mi : np.ndarray, shape (k,)
-            Mutual information between each harmonic and RSN labels.
-            Higher value → harmonic d aligns strongly with RSN structure.
+        mi : np.ndarray, shape (RSNs x harmonics)
+             matrix of mutual information
         """
-        try:
-            from sklearn.metrics import mutual_info_score
-        except ImportError:
-            raise ImportError(
-                "scikit-learn is required for mutual_information(). "
-                "Install with: pip install scikit-learn"
-            )
+        # np.random.seed(42)  # just for debug
+        mutual_info = []
+        for i in range(rsn.shape[1]):  # iterate through RSNs
+            vector = rsn[:, i]
+            mi_rsn_i = mutual_info_classif(phi, vector, discrete_features=False)
+            mutual_info.append(mi_rsn_i)
 
-        # Basis W: (N, k) — each column is one harmonic, values per parcel
-        W           = self._reducer.get_basis()   # (N, k)
-        N, k        = W.shape
-        rsn_labels  = np.asarray(rsn_labels)
-
-        if len(rsn_labels) != N:
-            raise ValueError(
-                f"rsn_labels has {len(rsn_labels)} entries but the basis "
-                f"has N={N} parcels. rsn_labels must have one entry per parcel."
-            )
-
-        mi = np.zeros(k)
-        for d in range(k):
-            # Per-parcel harmonic values for harmonic d
-            phi = W[:, d]                                  # (N,)
-
-            # Discretise phi into n_bins equal-width bins
-            bins        = np.linspace(phi.min(), phi.max(), n_bins + 1)
-            phi_binned  = np.digitize(phi, bins) - 1
-            phi_binned  = np.clip(phi_binned, 0, n_bins - 1)
-
-            # MI between RSN labels (N,) and binned harmonic values (N,)
-            mi[d] = mutual_info_score(rsn_labels, phi_binned)
-
+        mi = np.array(mutual_info)
         return mi
