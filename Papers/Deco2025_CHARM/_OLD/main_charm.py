@@ -1,5 +1,5 @@
 """
-examples/run_charm.py
+examples/main_charm.py
 ----------------------
 Full CHARM analysis pipeline using Neuroreduce, reproducing the original
 ``run()`` function from main_CHARM.py step by step.
@@ -22,7 +22,7 @@ sio.savemat(...)                         →   sio.savemat(...)  (unchanged)
 
 Usage
 -----
-    python examples/run_charm.py
+    python examples/main_charm.py
 
 Dependencies
 ------------
@@ -38,7 +38,7 @@ from scipy import stats
 from Neuroreduce import CHARMReducer
 from Neuroreduce.utils.charm_analysis import CHARMAnalysis
 
-# ── your existing data infrastructure (unchanged) ─────────────────────────────
+# ── existing data infrastructure ──────────────────────────────────────────────
 import DataLoaders.HCP_dbs80 as HCP
 from neuronumba.tools.filters import BandPassFilter
 

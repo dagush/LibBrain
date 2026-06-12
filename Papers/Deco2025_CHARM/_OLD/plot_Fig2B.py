@@ -1,5 +1,5 @@
 """
-examples/plot_ecm.py
+examples/plot_Fig2B.py
 ---------------------
 Produces ECM violin and scatter plots comparing PCA and CHARM.
 
@@ -17,7 +17,7 @@ Pipeline per subject, per method:
 
 Usage
 -----
-    python examples/plot_ecm.py
+    python examples/plot_Fig2B.py
 
 Output
 ------
@@ -45,7 +45,7 @@ from neuronumba.tools.filters import BandPassFilter
 
 
 # =============================================================================
-# Parameters — must match run_charm.py exactly
+# Parameters — must match main_charm.py exactly
 # =============================================================================
 
 N_regions  = 80
@@ -247,7 +247,7 @@ def make_ecm_plots(
                  f'{group_labels[0]} vs {group_labels[1]}  '
                  f'(n={len(ecm_source_rest)} subjects, k={LATDIM} dims)'),
     )
-    for ext in ('pdf', 'png'):
+    for ext in ('pdf', 'png'):  # save ecm_violins.png and ecm_violins.pdf
         path = f'{output_dir}/ecm_violins.{ext}'
         fig_v.savefig(path, bbox_inches='tight', dpi=150)
         print(f"  Saved: {path}")
