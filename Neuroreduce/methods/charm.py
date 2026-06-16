@@ -11,6 +11,9 @@ Implements the framework from:
 Original MATLAB code by Gustavo Deco.
 Python translation and Neuroreduce integration by Gustavo Patow.
 
+Note: the code refers as "Classical CHARM" to the traditional Harmonics, and
+      "Quantum" or "Quantum CHARM" to the actual CHARM technique.
+
 Convention recap (Neuroreduce-wide):
     N  : number of brain parcels / ROIs
     T  : number of fMRI timepoints (per subject)

@@ -1,8 +1,12 @@
 """
+this is a direct translation of the code in:
 Papers/Deco2025_CHARM/compare_analysis_single_th.py
 
 Python reproduction of Compare_Analysis_singleTh.m (Deco et al., 2025, PRE)
 using the Neuroreduce library.
+
+Note: the code refers as "Classical CHARM" to the traditional Harmonics, and
+      "Quantum" or "Quantum CHARM" to the actual CHARM technique.
 
 Benchmarks three dimensionality-reduction methods on the HCP REST-1 dataset
 (80-parcel DBS atlas, N=62 parcels selected).  Every subject is embedded
