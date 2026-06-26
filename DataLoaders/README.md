@@ -31,7 +31,7 @@ As a consequence, higher-level algorithms are completely independent of the orig
 
 ⸻
 
-## Current datasets
+## Example datasets (current)
 
 ### ADNI_B
 
