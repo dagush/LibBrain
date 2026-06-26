@@ -389,6 +389,42 @@ class ADNI_Long(DataLoader):
             f"Missing entries={len(self.missing_files)}"
         )
 
+    # -------------------------- Modality methods -----------------------------------
+    def list_modalities(self):
+        return ["fmri", "amyloid", "tau", "gmvol", "gmvol_apc"]
+
+    def get_modality(self, subject, modality, session=None, **kwargs):
+        modality = modality.lower()
+
+        if modality == "fmri":
+            if session is None:
+                raise ValueError("session must be provided for fMRI in ADNI_Long.")
+            return self.timeseries[subject][session]
+
+        if modality == "amyloid":
+            if session is None:
+                raise ValueError("session must be provided for Amyloid PET in ADNI_Long.")
+            return self.abeta[subject][session]
+
+        if modality == "tau":
+            if session is None:
+                raise ValueError("session must be provided for Tau PET in ADNI_Long.")
+            return self.tau[subject][session]
+
+        if modality == "gmvol":
+            if session is None:
+                raise ValueError("session must be provided for GMvol in ADNI_Long.")
+            return self.gmvol[subject][session]
+
+        if modality == "gmvol_apc":
+            return self.gmvol_apc[subject]
+
+        raise ValueError(
+            f"Unknown modality '{modality}'. "
+            f"Available modalities are: {self.list_modalities()}"
+        )
+
+
 # ================================================================================================================
 print('Done loading Raw Data!')
 # =========================  debug

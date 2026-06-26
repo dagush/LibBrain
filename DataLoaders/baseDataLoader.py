@@ -39,6 +39,44 @@ class DataLoader():
     def get_parcellation(self):
         return NotImplementedError('This should have been implemented by a subclass')
 
+    # -------------------------- Modality methods -----------------------------------
+    def get_modality(self, subject, modality, session=None, **kwargs):
+        """
+        Generic modality access point.
+
+        Parameters
+        ----------
+        subject : str
+            Subject identifier.
+        modality : str
+            Name of the requested modality, e.g.:
+            'fmri', 'amyloid', 'tau', 'gmvol', 'gmvol_apc'.
+        session : str, optional
+            Session identifier for longitudinal datasets.
+        **kwargs
+            Optional dataset-specific arguments.
+
+        Returns
+        -------
+        data
+            Dataset-specific data object, usually a NumPy array.
+
+        Notes
+        -----
+        Dataset subclasses should override this method.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement get_modality()."
+        )
+
+    def list_modalities(self):
+        """
+        Return available modalities for this dataset.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement list_modalities()."
+        )
+
     # -------------------------- Convenience methods -----------------------------------
     def get_groupLabels(self):  # Returns a list with all group labels
         classif = self.get_classification()

@@ -181,6 +181,28 @@ class ADNI_G(DataLoader):
         normSC = self._normalize_SC(self.SC, normalizationMethod=normalized, normalizationFactor=normalizationFactor)
         return normSC
 
+    # -------------------------- Modality methods -----------------------------------
+    def list_modalities(self):
+        return ["fmri", "amyloid", "tau"]
+
+    def get_modality(self, subject, modality, session=None, **kwargs):
+        group = self.get_classification()[subject]
+        modality = modality.lower()
+
+        if modality == "fmri":
+            return self.timeseries[group][subject]
+
+        if modality == "amyloid":
+            return self.burdens[group][subject]["ABeta"]
+
+        if modality == "tau":
+            return self.burdens[group][subject]["Tau"]
+
+        raise ValueError(
+            f"Unknown modality '{modality}'. "
+            f"Available modalities are: {self.list_modalities()}"
+        )
+
 
 # ================================================================================================================
 print('_Data_Raw loading done!')

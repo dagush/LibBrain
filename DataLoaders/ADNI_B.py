@@ -134,6 +134,28 @@ class ADNI_B(DataLoader):
     def get_parcellation(self):
         return Schaefer2018.Schaefer2018(N=400, normalization=2, RSN=7)  # use normalization of 2mm, 7 RSNs
 
+    # -------------------------- Modality methods -----------------------------------
+    def list_modalities(self):
+        return ["fmri", "amyloid", "tau"]
+
+    def get_modality(self, subject, modality, session=None, **kwargs):
+        group = self.get_classification()[subject]
+        modality = modality.lower()
+
+        if modality == "fmri":
+            return self.timeseries[group][subject]
+
+        if modality == "amyloid":
+            return self.burdens[group][subject]["ABeta"]
+
+        if modality == "tau":
+            return self.burdens[group][subject]["Tau"]
+
+        raise ValueError(
+            f"Unknown modality '{modality}'. "
+            f"Available modalities are: {self.list_modalities()}"
+        )
+
 # ================================================================================================================
 # ================================================================================================================
 # ADNI_B_N193_no_filt Loading
