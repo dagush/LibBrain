@@ -7,6 +7,8 @@
 #
 # Code by Gustavo Patow
 # ======================================================
+from typing import Any
+
 import csv
 import numpy as np
 from scipy import spatial
@@ -161,11 +163,11 @@ def save_RSN_labels(target_parcellation, idxs, useLR=False):
 # -----------------------------------------------------------------
 def build_RSN_for_parcellation(
         target_parcellation,
-        plotNodes=False,
-        useLR=False,
-        detailNetworks={},  # If a mode detailed region is NOT needed, use an empty detailNetworks
-                            # detailNetworks = {'Default': ['PFC', 'Par', 'Temp', 'pCunPCC', 'PHC']}
-                            # If a more detailed region is needed, especify it here (see comment for collectNamesAndIDsRSN)
+        plotNodes : bool = False,
+        useLR : bool = False,
+        detailNetworks : dict[Any,Any] = {},  # If a mode detailed region is NOT needed, use an empty detailNetworks
+                                              # detailNetworks = {'Default': ['PFC', 'Par', 'Temp', 'pCunPCC', 'PHC']}
+                                              # If a more detailed region is needed, especify it here (see comment for collectNamesAndIDsRSN)
         ):
     numNodes = 1000
     # -------- As input, we are going to use Yeo's 1000 roi RSN info on Schaefer's 2018 parcellation
@@ -195,8 +197,21 @@ def build_RSN_for_parcellation(
     names = collectNamesRSN(formatted_parc, useLR=useLR, detailedRSNs=detailNetworks)
     print(f'Names collected: {list(set(names))}')
     # Fourth, generate the indices
-    i = indices4RSNs(names)
+    indexes = indices4RSNs(names)
 
+    return formatted_parc, names, indexes
+
+
+def save_RSN_for_parcellation(
+        target_parcellation,
+        plotNodes: bool = False,
+        useLR: bool = False,
+        detailNetworks: dict[Any,Any] = {},  # If a mode detailed region is NOT needed, use an empty detailNetworks
+                        # detailNetworks = {'Default': ['PFC', 'Par', 'Temp', 'pCunPCC', 'PHC']}
+        # If a more detailed region is needed, especify it here (see comment for collectNamesAndIDsRSN)
+):
+    formatted_parc, names, i = build_RSN_for_parcellation(target_parcellation, plotNodes, useLR,
+                                                          detailNetworks=detailNetworks)
     # ------- save!!!
     save_parcellation_info(target_parcellation, formatted_parc)
     save_RSN_labels(target_parcellation, names)
@@ -209,7 +224,7 @@ def build_RSN_for_parcellation(
 if __name__ == '__main__':
     import DataLoaders.Parcellations.Glasser379 as Glasser379
     parc = Glasser379.Glasser379(N=360)
-    build_RSN_for_parcellation(parc, plotNodes=False)
+    save_RSN_for_parcellation(parc, plotNodes=False)
 
 # ======================================================
 # ======================================================

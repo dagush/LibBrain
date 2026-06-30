@@ -52,7 +52,7 @@ def fromBOLD(data_loader,
              ):
     # ------ first, make sure the basic RSN information is built for the chosen target parcellation
     target_parc = data_loader.get_parcellation()
-    transfer.build_RSN_for_parcellation(target_parc, plotNodes=False)
+    transfer.save_RSN_for_parcellation(target_parc, plotNodes=False)
 
     # ------- For the full RSN test
     print('-------------- Processing full RSN set')
