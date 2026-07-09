@@ -3,7 +3,7 @@ Neuroreduce/methods/functional_harmonics.py
 ---------------------------------------------
 Functional Harmonics: graph harmonics of the functional connectivity matrix.
 
-Computes FC from BOLD timeseries (via NeuroNumba FC observable), then
+Uses an FC or computes it from BOLD timeseries (via NeuroNumba FC observable), then
 computes eigenvectors of the graph Laplacian of that FC matrix.
 
 References
@@ -13,6 +13,9 @@ functions underlying cortical organization. Cell Reports, 36(8).
 
 Vohryzek, J., et al. (2024). Harmonic modes of neural activity in the resting
 state. NeuroImage.
+
+based on the code by
+Agatha Aguilar Calvache, June 2025
 """
 
 from __future__ import annotations
@@ -22,21 +25,15 @@ import numpy as np
 
 from Neuroreduce.methods.base_laplacian import BaseLaplacianReducer
 
-try:
-    from neuronumba.observables.fc import FC as _FCObservable
-except ModuleNotFoundError:
-    class _FCObservable:
-        def from_fmri(self, bold_signal):
-            return {'FC': np.corrcoef(bold_signal, rowvar=False)}
+from neuronumba.observables.fc import FC as _FCObservable
 
 
 class FunctionalHarmonicsReducer(BaseLaplacianReducer):
     """
     Functional Harmonics dimensionality reduction.
 
-    Computes FC from BOLD (via NeuroNumba FC observable), then computes
-    the k lowest-frequency eigenvectors of the graph Laplacian of that
-    FC matrix.
+    Uses the FC or computes it from BOLD (via NeuroNumba FC observable), then computes
+    the k lowest-frequency eigenvectors of the graph Laplacian of that FC matrix.
 
     Parameters
     ----------
@@ -64,32 +61,37 @@ class FunctionalHarmonicsReducer(BaseLaplacianReducer):
     def _get_input_matrix(
         self,
         X:  Optional[np.ndarray],
+        FC: Optional[np.ndarray],
         SC: Optional[np.ndarray],
     ) -> np.ndarray:
         """
         Compute FC from BOLD and use it as input to the Laplacian pipeline.
-
-        FC is computed via the NeuroNumba FC observable which expects
-        (T, N) input — we transpose X (N, T) before passing it.
+        If the FC is provided, return it directly.
+        Otherwise, compute it from the BOLD timeseries X:
+            FC is computed via the NeuroNumba FC observable which expects
+            (T, N) input — we transpose X (N, T) before passing it.
 
         Parameters
         ----------
         X  : np.ndarray, shape (N, T) — BOLD timeseries
+        FC : np.ndarray, shape (N, N) — functional connectivity matrix
         SC : ignored
 
         Returns
         -------
         FC : np.ndarray, shape (N, N)
         """
-        if X is None:
+        if X is None and FC is None:
             raise ValueError(
-                "FunctionalHarmonicsReducer requires BOLD timeseries X. "
+                "FunctionalHarmonicsReducer requires either the BOLD timeseries X of the FC itself. "
                 "Call fit(X=your_bold_signal)."
+                "Call fit(FC=your_fc_matrix)."
             )
-        # NeuroNumba FC observable expects (T, N) — transpose from (N, T)
-        obs    = _FCObservable()
-        result = obs.from_fmri(X.T)
-        FC     = result['FC']                    # (N, N) Pearson correlation
-        # Replace any NaN (from constant parcels) with 0
-        FC     = np.nan_to_num(FC, nan=0.0)
+        if X is not None:
+            # NeuroNumba FC observable expects (T, N) — transpose from (N, T)
+            obs    = _FCObservable()
+            result = obs.from_fmri(X.T)
+            FC     = result['FC']                    # (N, N) Pearson correlation
+            # Replace any NaN (from constant parcels) with 0
+            FC     = np.nan_to_num(FC, nan=0.0)
         return FC

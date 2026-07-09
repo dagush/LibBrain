@@ -25,18 +25,19 @@ W = reducer.get_basis()         # W: (N, k)  — spatial modes
 
 ## Implemented methods
 
-| Class | Method | Input | Reference |
-|---|---|---|---|
-| `PCAReducer` | Principal Component Analysis | BOLD | — |
-| `CHARMReducer` | Complex HARMonics (BOLD) | BOLD timeseries | Deco et al. (2025) |
-| `CHARMSCReducer` | Complex HARMonics (geometry) | Parcel coordinates | Deco et al. (2025) |
-| `ConnectomeHarmonicsReducer` | Connectome Harmonics | SC matrix | Atasoy et al. (2016) |
-| `FunctionalHarmonicsReducer` | Functional Harmonics | BOLD (FC computed internally) | Glomb et al. (2021) |
+| Class | Method | Input                               | Reference |
+|---|---|-------------------------------------|---|
+| `PCAReducer` | Principal Component Analysis | BOLD                                | — |
+| `CHARMReducer` | Complex HARMonics (BOLD) | BOLD timeseries                     | Deco et al. (2025) |
+| `CHARMSCReducer` | Complex HARMonics (geometry) | Parcel coordinates                  | Deco et al. (2025) |
+| `ConnectomeHarmonicsReducer` | Connectome Harmonics | SC matrix                           | Atasoy et al. (2016) |
+| `FunctionalHarmonicsReducer` | Functional Harmonics | BOLD (FC computed internally) or FC | Glomb et al. (2021) |
 
 ## Conventions
 
 - BOLD input: `np.ndarray`, shape `(N, T)` — parcels × timepoints
 - SC input: `np.ndarray`, shape `(N, N)`
+- FC input: `np.ndarray`, shape `(N, N)`
 - Output: `np.ndarray`, shape `(k, T)` — reduced dimensions × timepoints
 - Basis: `np.ndarray`, shape `(N, k)` — spatial modes
 

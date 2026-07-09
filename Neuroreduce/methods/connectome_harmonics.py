@@ -11,6 +11,9 @@ Reference
 ---------
 Atasoy, S., Donnelly, I., & Pearce, J. (2016). Human brain networks function
 in connectome-specific harmonic waves. Nature Communications, 7, 10340.
+
+based on the code by
+Agatha Aguilar Calvache, June 2025
 """
 
 from __future__ import annotations
@@ -57,6 +60,7 @@ class ConnectomeHarmonicsReducer(BaseLaplacianReducer):
     def _get_input_matrix(
         self,
         X:  Optional[np.ndarray],
+        FC: Optional[np.ndarray],
         SC: Optional[np.ndarray],
     ) -> np.ndarray:
         """
@@ -65,6 +69,7 @@ class ConnectomeHarmonicsReducer(BaseLaplacianReducer):
         Parameters
         ----------
         X  : ignored
+        FC : ignored
         SC : np.ndarray, shape (N, N) — structural connectivity matrix
 
         Returns

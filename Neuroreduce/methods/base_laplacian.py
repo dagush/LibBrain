@@ -31,6 +31,9 @@ Design note
 This is NOT a mixin — it is a full abstract DimensionalityReducer subclass.
 Subclasses only need to implement ``_get_input_matrix(X, SC)`` which extracts
 the matrix to feed into the Laplacian pipeline.
+
+based on the code by
+Agatha Aguilar Calvache, June 2025
 """
 
 from __future__ import annotations
@@ -62,10 +65,15 @@ class BaseLaplacianReducer(DimensionalityReducer):
         Values in the connectivity matrix at or below this threshold are
         set to zero before computing the Laplacian. This removes spurious
         weak connections.
-        Default: 0.00065 (value used in the student's original code).
+        Default: 0.00065 (value used in Agatha's original code).
+    sparcity_alg : str
+        How to sparsify the connectivity matrix before computing the Laplacian:
+        - 'uniform' : zero out all values <= threshold (matches Agatha's code)
+        - 'median'  : zero out values < median of each row (matches Jakub's code)
+        Default: 'uniform'.
     laplacian_type : str
         Which Laplacian to compute:
-        - 'unnormalised' : L = D - A  (default, matches student's code)
+        - 'unnormalised' : L = D - A  (default, matches Agatha's code)
         - 'symmetric'    : L_sym = D^{-1/2} L D^{-1/2}
         Default: 'unnormalised'.
     normalise_input : bool
@@ -82,7 +90,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
     Notes on eigenvector sign convention
     -------------------------------------
     The Laplacian eigenvectors are defined only up to sign — if v is an
-    eigenvector, so is -v. The student's code handles this in transform()
+    eigenvector, so is -v. Agatha's code handles this in transform()
     by taking max(dot(x, phi), dot(-x, phi)) per timepoint, which preserves
     the magnitude of the projection regardless of sign. We preserve this
     behaviour via the ``sign_invariant`` parameter in transform().
@@ -92,6 +100,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
         self,
         k:                        int,
         threshold:                float = 0.00065,
+        sparcity_alg:             str = 'uniform',
         laplacian_type:           str   = 'unnormalised',
         normalise_input:          bool  = True,
         remove_self_connections:  bool  = True,
@@ -106,6 +115,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
             )
 
         self.threshold               = threshold
+        self.sparcity_alg            = sparcity_alg
         self.laplacian_type          = laplacian_type
         self.normalise_input         = normalise_input
         self.remove_self_connections = remove_self_connections
@@ -147,6 +157,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
     def fit(
         self,
         X:  Optional[np.ndarray] = None,
+        FC: Optional[np.ndarray] = None,
         SC: Optional[np.ndarray] = None,
     ) -> "BaseLaplacianReducer":
         """
@@ -166,7 +177,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
         self
         """
         # Get the input matrix from the subclass
-        M = self._get_input_matrix(X, SC)
+        M = self._get_input_matrix(X, FC, SC)
 
         # Validate: must be square
         if M.ndim != 2 or M.shape[0] != M.shape[1]:
@@ -192,15 +203,23 @@ class BaseLaplacianReducer(DimensionalityReducer):
 
         # ── Step 1: Adjacency matrix ───────────────────────────────────────
         # Threshold: zero out weak connections
-        # Matching the student's LaplacianCalculator.get_adj():
-        #   A = copy(M); A[M <= th] = 0; A = max(A, A.T)
         A = np.copy(M)
-        A[A <= self.threshold] = 0.0
-        A = np.maximum(A, A.T)   # ensure symmetry after thresholding
+        if self.sparcity_alg == 'uniform':
+            # Matching Agatha's LaplacianCalculator.get_adj():
+            #   A = copy(M); A[M <= th] = 0; A = max(A, A.T)
+            A[A <= self.threshold] = 0.0
+        else:  # median
+            # Matching Jakub's p1_HADES_basis_denseFC_vertex_on_HCP code: computes the column-wise median, then
+            # for each row, it zeros out the elements whose value is below the median of the corresponding column.
+            tmp = np.median(A, axis=0)
+            # A[A < tmp] = 0.0
+            for i in range(N):
+                A[i, A[i, :] < tmp[i]] = 0.0
+        A = (A + A.T) / 2.   # ensure symmetry after thresholding
 
         # ── Step 2: Degree matrix ──────────────────────────────────────────
         # D_ii = sum_j A_ij  (weighted degree)
-        # Matching the student's LaplacianCalculator.get_deg()
+        # Matching Agatha's LaplacianCalculator.get_deg()
         deg = np.sum(A, axis=0)
         D   = np.diag(deg)
 
@@ -214,7 +233,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
             # L_sym = D^{-1/2} L D^{-1/2}
             # Makes eigenvalues in [0, 2]; useful for comparing graphs of
             # different sizes / densities.
-            # Matching the student's SymmetricLaplacian.get_laplacian()
+            # Matching Agatha's SymmetricLaplacian.get_laplacian()
             L   = D - A
             D2  = np.copy(D)
             for i in range(N):
@@ -225,9 +244,9 @@ class BaseLaplacianReducer(DimensionalityReducer):
             L = D2 @ L @ D2
 
         # ── Step 4: Eigendecomposition ─────────────────────────────────────
-        # eigh assumes real symmetric matrix → returns sorted eigenvalues
-        # in ascending order (lowest frequency first).
-        # The student sorts again "just to be sure" — we keep that habit.
+        # eigh assumes real symmetric matrix → returns sorted eigenvalues in
+        # ascending order (lowest frequency first).
+        # Agatha sorts again "just to be sure" — we keep that habit.
         e_val, e_vec = np.linalg.eigh(L)
         idx          = np.argsort(e_val)
         e_val        = e_val[idx]
@@ -255,7 +274,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
 
         For each timepoint t and each harmonic d, computes:
 
-            sign_invariant=True  (default, student's convention):
+            sign_invariant=True  (default, Agatha's convention):
                 beta[d, t] = max( dot(phi_d, X[:,t]),
                                   dot(-phi_d, X[:,t]) )
                            = |dot(phi_d, X[:,t])|   (absolute projection)
@@ -276,7 +295,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
             BOLD timeseries.
         sign_invariant : bool
             Whether to take the absolute value of each projection.
-            Default: True (matching the student's projectVectorTime).
+            Default: True (matching Agatha's projectVectorTime).
 
         Returns
         -------
@@ -292,7 +311,7 @@ class BaseLaplacianReducer(DimensionalityReducer):
 
         if sign_invariant:
             # Take absolute value to handle eigenvector sign ambiguity.
-            # Equivalent to the student's max(dot(x,phi), dot(-x,phi))
+            # Equivalent to Agatha's max(dot(x,phi), dot(-x,phi))
             # since dot(-x,phi) = -dot(x,phi), so the max of the two
             # is always the absolute value.
             Z = np.abs(Z)
