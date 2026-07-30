@@ -69,7 +69,7 @@ def effect_size_table(data_dict, alpha=0.05, n_boot=5000):
 # --------------------------------------------------------------------------------------
 def cohens_d(group1, group2):
     # Calculating means of the two groups
-    mean1, mean2 = np.mean(group1), np.mean(group2)
+    mean1, mean2 = np.nanmean(group1), np.nanmean(group2)
 
     # Calculating pooled standard deviation
     std1, std2 = np.std(group1, ddof=1), np.std(group2, ddof=1)
@@ -123,7 +123,8 @@ def pairwise_effect_size_table(
         )
 
         rows.append({
-            "Comparison": f"{label1} vs {label2}",
+            "group1": label1,
+            "group2": label2,
             "Cohen's d": round(d, 3),
             "95% CI": f"[{ci_low:.3f}, {ci_high:.3f}]",
             "Interpretation": cohens_d_label(d)

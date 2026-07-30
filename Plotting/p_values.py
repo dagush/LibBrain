@@ -10,9 +10,11 @@ import itertools
 
 import numpy as np
 import scipy.stats as stats
+import sigfig
+import matplotlib.pyplot as plt
 
 import Utils.Stats.Cohens_d as cohens_d
-
+from Utils.Stats.p_values import compare_groups
 
 fontSize = 10
 
@@ -20,122 +22,205 @@ fontSize = 10
 # --------------------------------------------------------------------------------------
 # Simply avg and Std Dev printing function...
 # --------------------------------------------------------------------------------------
-def printStats(dataset, one_sample=False, to_LaTeX=True):
+
+def dataframe_to_latex_table(
+    df,
+    observable,
+    caption="Measures for the different groups.",
+    label="tab:group_values"
+):
+    """
+    Convert a summary DataFrame into a LaTeX table.
+
+    Expected DataFrame columns:
+        group, avg, stdev, len
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing the group statistics.
+
+    observable : str
+        Name of the observable, e.g. "Ignition".
+
+    caption : str, optional
+        LaTeX table caption.
+
+    label : str, optional
+        LaTeX table label.
+
+    Returns
+    -------
+    str
+        Complete LaTeX table.
+    """
+
+    # Group names
+    groups = df["group"].astype(str).tolist()
+
+    # Format each average together with its uncertainty
+    values = []
+
+    for _, row in df.iterrows():
+        rounded = sigfig.round(
+            row["avg"],
+            uncertainty=row["stdev"]
+        )
+        # Convert Unicode ± into LaTeX
+        rounded = rounded.replace("±", r"$\pm$")
+        values.append(rounded)
+
+    # Number of columns = observable column + one column per group
+    column_format = "l" * (len(groups) + 1)
+    # Optional numerical header: 0, 1, 2, ...
+    indices = [str(i) for i in range(len(groups))]
+
+    latex = (
+        "\\begin{table}\n"
+        f"\\caption{{{caption}}}\n"
+        f"\\label{{{label}}}\n"
+        f"\\begin{{tabular}}{{{column_format}}}\n"
+        "\\toprule\n"
+        # " & " + " & ".join(indices) + r" \\" + "\n"
+        "Observable & " + " & ".join(groups) + r" \\" + "\n"
+        "\\midrule\n"
+        " & " + f" & ".join(values) + r" \\" + "\n"
+        "\\bottomrule\n"
+        "\\end{tabular}\n"
+        "\\end{table}"
+    )
+
+    return latex
+
+
+def printStats(dataset, graph_label,
+               test='Mann-Whitney', custom_test=None,
+               comparisons_correction='fdr_bh',
+               one_sample=False, to_LaTeX=True):
+    # ------------------------------ Group-level stats
     print("\nAverages and Std Dev:")
     if not isinstance(dataset, dict):
         dict_dataset = {}
         for pos, dataToPlot in enumerate(dataset.T):
             dict_dataset[pos] = dataToPlot
         dataset = dict_dataset
-    for setToPlot in dataset:
+    df0 = pd.DataFrame(columns=["group", "avg", "stdev", "len"])
+    for i, setToPlot in enumerate(dataset):
         # if there are nan problems, use np.count_nonzero(~np.isnan(dataset[setToPlot]))
-        print(f'{setToPlot}: avg={np.nanmean(dataset[setToPlot])}, stdev={np.nanstd(dataset[setToPlot])}, len={len(dataset[setToPlot])}')
-    # for pair in itertools.combinations(dataset, r=2):
-    #     if pair[0] != pair[1]:
-    #         d = cohens_d.cohens_d(dataset[pair[0]], dataset[pair[1]])
-    #         print(f"Cohen's d {pair} = {d} ({cohens_d.cohens_d_label(d)})")
+        df0.loc[len(df0)] = [setToPlot, np.nanmean(dataset[setToPlot]), np.nanstd(dataset[setToPlot]), len(dataset[setToPlot])]
+    print(df0.T)
+    if to_LaTeX:
+        tex = dataframe_to_latex_table(df0, observable=graph_label)
+        print(f'\n{tex}\n')
+    # ------------------------------ stats across groups
+    results = compare_groups(
+        dataset,
+        test=test,
+        correction=comparisons_correction,
+        alternative="two-sided",
+    )
+    # print(results)
     if one_sample:
         df = cohens_d.effect_size_table(dataset)
-        print(df)
     else:
         df = cohens_d.pairwise_effect_size_table(dataset)
-        print(df)
+    df = df.merge(results[['group1', 'group2', 'p_corrected']], on=['group1', 'group2'])
+    df.rename(columns={"p_corrected": "p-value"}, inplace=True)
+    print(df)
     if to_LaTeX:
         tex = df.to_latex(
             index=False,
             caption="Effect sizes (Cohen’s d) with 95\\% bootstrap confidence intervals.",
             label="tab:effect_sizes",
-            escape=False
+            formatters={"p-value": lambda x: "{:.2e}".format(x)},
+            escape=False,
         )
         print(f'\n{tex}\n')
+
 
 
 # --------------------------------------------------------------------------------------
 # This is a simple check to prevent the "All numbers are identical in mannwhitneyu" error...
 # --------------------------------------------------------------------------------------
-def checkTiecorrect(x,y):
-    x = np.asarray(x)
-    y = np.asarray(y)
-    n1 = len(x)
-    n2 = len(y)
-    ranked = stats.rankdata(np.concatenate((x, y)))
-    rankx = ranked[0:n1]  # get the x-ranks
-    u1 = n1*n2 + (n1*(n1+1))/2.0 - np.sum(rankx, axis=0)  # calc U for x
-    u2 = n1*n2 - u1  # remainder is U for y
-    T = stats.tiecorrect(ranked)
-    return T != 0
+# def checkTiecorrect(x,y):
+#     x = np.asarray(x)
+#     y = np.asarray(y)
+#     n1 = len(x)
+#     n2 = len(y)
+#     ranked = stats.rankdata(np.concatenate((x, y)))
+#     rankx = ranked[0:n1]  # get the x-ranks
+#     u1 = n1*n2 + (n1*(n1+1))/2.0 - np.sum(rankx, axis=0)  # calc U for x
+#     u2 = n1*n2 - u1  # remainder is U for y
+#     T = stats.tiecorrect(ranked)
+#     return T != 0
 
-
-
-def plotMeanVars(ax, data, pos, title):
-    points = [data[d] for d in data]
-    positions = [pos[d] for d in data]
-    ax.boxplot(points, positions=positions, labels=data.keys())  # notch='True', patch_artist=True,
-
-    for d in data:
-        ax.plot(pos[d]*np.ones(len(data[d])), np.array(data[d]).reshape(len(data[d])),
-                'r.', alpha=0.2)
-    ax.set_title(title)
-
+# def plotMeanVars(ax, data, pos, title):
+#     points = [data[d] for d in data]
+#     positions = [pos[d] for d in data]
+#     ax.boxplot(points, positions=positions, labels=data.keys())  # notch='True', patch_artist=True,
+#
+#     for d in data:
+#         ax.plot(pos[d]*np.ones(len(data[d])), np.array(data[d]).reshape(len(data[d])),
+#                 'r.', alpha=0.2)
+#     ax.set_title(title)
 
 # h = fontSize / 10
-barHeight = fontSize / 2.
-def plotSignificanceStars(ax, tests, pos, plotOrder = None, col='grey'):
-    def stars(p):
-       if p < 0.0001:
-           return "****"
-       elif (p < 0.001):
-           return "***"
-       elif (p < 0.01):
-           return "**"
-       elif (p < 0.05):
-           return "*"
-       else:
-           return "-"
+# barHeight = fontSize / 2.
+# def plotSignificanceStars(ax, tests, pos, plotOrder = None, col='grey'):
+#     def stars(p):
+#        if p < 0.0001:
+#            return "****"
+#        elif (p < 0.001):
+#            return "***"
+#        elif (p < 0.01):
+#            return "**"
+#        elif (p < 0.05):
+#            return "*"
+#        else:
+#            return "-"
+#
+#     # def stars(test):
+#     #     if test < 0.001:
+#     #         text = f'*** p={test:.4f}'
+#     #     elif test < 0.01:
+#     #         text = f'** p={test:.3f}'
+#     #     elif test < 0.05:
+#     #         text = f'* p={test:.3f}'
+#     #     else:
+#     #         text = f'p={test:.3f}'
+#     #     return text
+#
+#     def plotBar(x1, x2, h, text):  # (x1, x2, y, h, text):
+#         ylim = ax.get_ylim()
+#         y = ylim[1] + h
+#         ax.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
+#         ax.text((x1+x2)*.5, y+h, text, ha='center', va='bottom', color=col)
+#         ax.set_ylim([ylim[0], y + 5 * h])
+#
+#     if plotOrder is None: plotOrder = tests
+#     # * statistical tests. From https://towardsdatascience.com/beautiful-boxplots-with-statistical-significance-annotation-e1b314927fc5
+#     # x1, x2 = -0.20, 0.20
+#     # y, h, col = df_long[df_long.Feature == feature][“Value”].max()+1, 2, ‘k’
+#     # axes[idx].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
+#     # axes[idx].text((x1+x2)*.5, y+h, “statistically significant”, ha=’center’, va=’bottom’, color=col)
+#     ylim = ax.get_ylim()
+#     h = (ylim[1] - ylim[0]) / 50
+#     for order, pair in enumerate(plotOrder):
+#         labels = pair.split('_')
+#         plotBar(pos[labels[0]], pos[labels[1]], h, stars(tests[pair]))  # ylim[1] + delta * order
+#     print()
 
-    # def stars(test):
-    #     if test < 0.001:
-    #         text = f'*** p={test:.4f}'
-    #     elif test < 0.01:
-    #         text = f'** p={test:.3f}'
-    #     elif test < 0.05:
-    #         text = f'* p={test:.3f}'
-    #     else:
-    #         text = f'p={test:.3f}'
-    #     return text
-
-    def plotBar(x1, x2, h, text):  # (x1, x2, y, h, text):
-        ylim = ax.get_ylim()
-        y = ylim[1] + h
-        ax.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
-        ax.text((x1+x2)*.5, y+h, text, ha='center', va='bottom', color=col)
-        ax.set_ylim([ylim[0], y + 5 * h])
-
-    if plotOrder is None: plotOrder = tests
-    # * statistical tests. From https://towardsdatascience.com/beautiful-boxplots-with-statistical-significance-annotation-e1b314927fc5
-    # x1, x2 = -0.20, 0.20
-    # y, h, col = df_long[df_long.Feature == feature][“Value”].max()+1, 2, ‘k’
-    # axes[idx].plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
-    # axes[idx].text((x1+x2)*.5, y+h, “statistically significant”, ha=’center’, va=’bottom’, color=col)
-    ylim = ax.get_ylim()
-    h = (ylim[1] - ylim[0]) / 50
-    for order, pair in enumerate(plotOrder):
-        labels = pair.split('_')
-        plotBar(pos[labels[0]], pos[labels[1]], h, stars(tests[pair]))  # ylim[1] + delta * order
-    print()
-
-
-def computeWilcoxonTests(data):
-    tests = {}
-    for pair in itertools.combinations(data, r=2):
-        if pair[0] != pair[1]:
-            testName = pair[0]+'_'+pair[1]
-            if checkTiecorrect(data[pair[0]], data[pair[1]]):
-                tests[testName] = stats.mannwhitneyu(data[pair[0]], data[pair[1]]).pvalue
-            else:
-                tests[testName] = 1
-            print(f'test[{testName}] = {tests[testName]}')
-    return tests
+# def computeWilcoxonTests(data):
+#     tests = {}
+#     for pair in itertools.combinations(data, r=2):
+#         if pair[0] != pair[1]:
+#             testName = pair[0]+'_'+pair[1]
+#             if checkTiecorrect(data[pair[0]], data[pair[1]]):
+#                 tests[testName] = stats.mannwhitneyu(data[pair[0]], data[pair[1]]).pvalue
+#             else:
+#                 tests[testName] = 1
+#             print(f'test[{testName}] = {tests[testName]}')
+#     return tests
 
 # ----------------------------------------------------------------------------
 # Some convenience WholeBrain
@@ -143,66 +228,61 @@ def computeWilcoxonTests(data):
 # ----------------------------------------------------------------------------
 # Plotting func.
 # ----------------------------------------------------------------------------
-import matplotlib.pyplot as plt
-
-posA = 1; posB = 2; posC = 3; posD = 4
+# posA = 1; posB = 2; posC = 3; posD = 4
 
 # Generates a boxPlot and the p-values for 3 different labels
-def plotComparisonAcrossLabelsAx(ax, dataA, dataB, dataC, labels, titleLabel='test', ylabel='Obs', yLimits = None):
-    points = {labels[0]: dataA, labels[1]: dataB, labels[2]: dataC}
-    positions = {labels[0]: posA, labels[1]: posB, labels[2]: posC}
-    if yLimits is not None:
-        ax.set_ylim(yLimits)
-    plotMeanVars(ax, points, positions, title=titleLabel)  # f'Parm Comparison ({titleLabel})'
-    test = computeWilcoxonTests(points)
-    plotSignificanceStars(ax, test, positions, plotOrder=[labels[0]+'_'+labels[1],
-                                                     labels[1]+'_'+labels[2],
-                                                     labels[0]+'_'+labels[2],
-                                                    ])
-    ax.set_ylabel(ylabel)
-
+# def plotComparisonAcrossLabelsAx(ax, dataA, dataB, dataC, labels, titleLabel='test', ylabel='Obs', yLimits = None):
+#     points = {labels[0]: dataA, labels[1]: dataB, labels[2]: dataC}
+#     positions = {labels[0]: posA, labels[1]: posB, labels[2]: posC}
+#     if yLimits is not None:
+#         ax.set_ylim(yLimits)
+#     plotMeanVars(ax, points, positions, title=titleLabel)  # f'Parm Comparison ({titleLabel})'
+#     test = computeWilcoxonTests(points)
+#     plotSignificanceStars(ax, test, positions, plotOrder=[labels[0]+'_'+labels[1],
+#                                                      labels[1]+'_'+labels[2],
+#                                                      labels[0]+'_'+labels[2],
+#                                                     ])
+#     ax.set_ylabel(ylabel)
 
 # Convenience version that directly generates the picture...
-def plotComparisonAcrossLabels(dataA, dataB, dataC, labels, titleLabel='test', ylabel='Obs', yLimits=None):
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1)
-    plotComparisonAcrossLabelsAx(ax, dataA, dataB, dataC, labels, titleLabel=titleLabel, ylabel=ylabel, yLimits=yLimits)
-    plt.show()
-
+# def plotComparisonAcrossLabels(dataA, dataB, dataC, labels, titleLabel='test', ylabel='Obs', yLimits=None):
+#     fig = plt.figure()
+#     ax = fig.add_subplot(1,1,1)
+#     plotComparisonAcrossLabelsAx(ax, dataA, dataB, dataC, labels, titleLabel=titleLabel, ylabel=ylabel, yLimits=yLimits)
+#     plt.show()
 
 # Same as previous one, but with 4 labels. Too lazy to refactor this... ;-)
-def plotValuesComparisonAcross4Labels(dataA, dataB, dataC, dataD, labels, titleLabel='test', yLimits = None):
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1)
-    points = {labels[0]: dataA, labels[1]: dataB, labels[2]: dataC, labels[3]: dataD}
-    positions = {labels[0]: posA, labels[1]: posB, labels[2]: posC, labels[3]: posD}
-    if yLimits is not None:
-        ax.set_ylim(yLimits)
-    plotMeanVars(ax, points, positions, title=titleLabel)  # f'Parm Comparison ({titleLabel})'
-    test = computeWilcoxonTests(points)
-    plotSignificanceStars(ax, test, positions, plotOrder=[labels[0]+'_'+labels[1],
-                                                     labels[1]+'_'+labels[2],
-                                                     labels[0]+'_'+labels[2],
-                                                     labels[2]+'_'+labels[3],
-                                                     labels[1]+'_'+labels[3],
-                                                     labels[0]+'_'+labels[3],
-                                                    ])
-    ax.set_ylabel("phFCD")
-    plt.show()
+# def plotValuesComparisonAcross4Labels(dataA, dataB, dataC, dataD, labels, titleLabel='test', yLimits = None):
+#     fig = plt.figure()
+#     ax = fig.add_subplot(1,1,1)
+#     points = {labels[0]: dataA, labels[1]: dataB, labels[2]: dataC, labels[3]: dataD}
+#     positions = {labels[0]: posA, labels[1]: posB, labels[2]: posC, labels[3]: posD}
+#     if yLimits is not None:
+#         ax.set_ylim(yLimits)
+#     plotMeanVars(ax, points, positions, title=titleLabel)  # f'Parm Comparison ({titleLabel})'
+#     test = computeWilcoxonTests(points)
+#     plotSignificanceStars(ax, test, positions, plotOrder=[labels[0]+'_'+labels[1],
+#                                                      labels[1]+'_'+labels[2],
+#                                                      labels[0]+'_'+labels[2],
+#                                                      labels[2]+'_'+labels[3],
+#                                                      labels[1]+'_'+labels[3],
+#                                                      labels[0]+'_'+labels[3],
+#                                                     ])
+#     ax.set_ylabel("phFCD")
+#     plt.show()
 
-
-def findMinMaxSpan(a,b):
-    max = -np.inf; posMax = 0
-    min = np.inf; posMin = 0
-    for pos, (va, vb) in enumerate(zip(a,b)):
-        span = np.abs(va-vb)
-        if span > max:
-            max = span
-            posMax = pos
-        if span < min:
-            min = span
-            posMin = pos
-    return min, posMin, max, posMax
+# def findMinMaxSpan(a,b):
+#     max = -np.inf; posMax = 0
+#     min = np.inf; posMin = 0
+#     for pos, (va, vb) in enumerate(zip(a,b)):
+#         span = np.abs(va-vb)
+#         if span > max:
+#             max = span
+#             posMax = pos
+#         if span < min:
+#             min = span
+#             posMin = pos
+#     return min, posMin, max, posMax
 
 
 # --------------------------------------------------------------------------------------
@@ -233,11 +313,11 @@ def padEqualLengthDicts(tests):
     return fixed
 
 
-def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
+def plotComparisonAcrossLabels2Ax(ax, tests,
                                   columnLables=None, graphLabel='', pairs=None,
-                                  test='Mann-Whitney', comparisons_correction='BH',
+                                  test='Mann-Whitney', comparisons_correction='fdr_bh',
                                   show_N=True):
-    printStats(tests)
+    printStats(tests, graphLabel, test, comparisons_correction)
     if columnLables is None:
         columnLables = tests.keys()
     if show_N:  # we need to do this BEFORE the padding for equal length!
@@ -245,29 +325,25 @@ def plotComparisonAcrossLabels2Ax(ax, tests, custom_test=None,
         plt.xticks(range(len(columnLables)), column_names)
     if isinstance(tests, dict):
         tests = padEqualLengthDicts(tests)
-    df = pd.DataFrame(tests, columns=columnLables)
+    df = pd.DataFrame(tests, columns=columnLables, dtype='float64')
     sns.boxplot(data=df, order=columnLables, ax=ax)
     # sns.catplot(data=df, kind="box")
     if pairs == None:
         pairs = list(combinations(columnLables, 2))
     annotator = Annotator(ax, pairs, data=df, order=list(columnLables))
     annotator.configure(test=test, text_format='star', loc='inside')
-    if custom_test is None:
-        annotator.configure(test='Mann-Whitney')
-    else:
-        annotator.configure(test=custom_test)
     if comparisons_correction is not None:
         annotator.configure(comparisons_correction=comparisons_correction, correction_format="replace")  # BH / Bonferroni
     annotator.apply_and_annotate()
     ax.set_title(graphLabel)
 
 
-def plotComparisonAcrossLabels2(tests, custom_test=None,
+def plotComparisonAcrossLabels2(tests,
                                 columnLables=None, graphLabel='', pairs=None,
-                                test='Mann-Whitney', comparisons_correction='BH',
+                                test='Mann-Whitney', comparisons_correction='fdr_bh',
                                 show_N=True):
     fig, ax = plt.subplots()
-    plotComparisonAcrossLabels2Ax(ax, tests, custom_test=custom_test,
+    plotComparisonAcrossLabels2Ax(ax, tests,
                                   columnLables=columnLables, graphLabel=graphLabel, pairs=pairs,
                                   test=test, comparisons_correction=comparisons_correction,
                                   show_N=show_N)
