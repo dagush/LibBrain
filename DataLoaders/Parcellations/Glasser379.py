@@ -19,7 +19,7 @@ class Glasser379(Parcellation):
         self.N = N
 
     def get_name(self):
-        return "Glasser379"
+        return "Glasser" + str(self.N)  # 379 or 360...
 
     def get_N(self):
         return self.N
@@ -47,7 +47,7 @@ class Glasser379(Parcellation):
         df = pd.read_csv(glasserParcellationFolder + 'Anatomical-Labels.csv', names=columnames, header=None)
         nlist = df[columnames[1]].tolist()
         fullnames = nlist + nlist + node_names[360:378] + ['Brainstem']
-        return fullnames
+        return fullnames[:self.N]  # cut the list (could have avoided building it in the first place, but it is clearer here)
 
     def get_region_short_labels(self):
         # ----------------- node labels

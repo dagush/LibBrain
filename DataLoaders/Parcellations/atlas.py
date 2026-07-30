@@ -16,14 +16,19 @@ parcellation_folder = WorkBrainDataFolder + '_Parcellations/'
 class Atlas:
     def __init__(self, parcellation, N=None, normalization=None, RSN=7):
         # ----- select parcellation
-        if parcellation == 'dbs80':
+        if isinstance(parcellation, str):  # if it is only the (string) name...
+            self.parcellation_name = parcellation
+        else:  # if not, it must be a parcellation
+            self.parcellation_name = parcellation.get_name()
+
+        if self.parcellation_name == 'dbs80':
             file = parcellation_folder + 'dbs80/dbs80symm_2mm.nii.gz'
-        elif parcellation == 'Glasser360':
+        elif self.parcellation_name == 'Glasser360':
             file = parcellation_folder + 'Glasser360/glasser360MNI.nii.gz'
-        elif parcellation == 'Schaefer2018':
+        elif self.parcellation_name == 'Schaefer2018':
             file = parcellation_folder + f'Schaefer2018/MNI/Schaefer2018_{N}Parcels_{RSN}Networks_order_FSLMNI152_{normalization}mm.nii.gz'
         else:  # none of the above, generic parcellation
-            file = parcellation
+            file = self.parcellation_name
         # ----- load parcellation
         self.brain_vol = nib.load(file)
         # ----- extract some useful info!
