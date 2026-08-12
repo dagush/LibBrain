@@ -123,14 +123,18 @@ class HCP(DataLoader):
             # preferred methods to get dataset values:
             # ds_obj = f[a_group_key]  # returns as a h5py dataset object
             # ds_arr = f[a_group_key][()]  # returns as a numpy array
+            subjects = list(h5File['subject'])
 
-            with h5py.File(filename.replace("hcp", "hcporder"), "r") as h5OrderFile:
-                order = h5OrderFile['order']
-                ids = [str(int(id[0])) for id in order]
+            if self.N() == 100:
+                filename = filename.replace("hcp", "hcporder")
+                with h5py.File(filename, "r") as h5OrderFile:
+                    order = h5OrderFile['order']
+                    ids = [str(int(id[0])) for id in order]
+            else:
+                ids = list(range(len(subjects)))
 
             all_fMRI = {}
             excluded = []
-            subjects = list(h5File['subject'])
             for pos, subj in enumerate(subjects):
                 # print(f'reading subject {pos}')
                 group = h5File[subj[0]]
