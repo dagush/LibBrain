@@ -72,6 +72,9 @@ EXCLUDE_PARCELS = [554, 907]
 # =============================================================================
 # Helper: Bhattacharyya distance
 # Corresponds to MATLAB: -log(nansum(sqrt(p .* q)))
+#
+# The relationship with the KL divergence is explained here:
+# https://stats.stackexchange.com/questions/130432/differences-between-bhattacharyya-distance-and-kl-divergence
 # =============================================================================
 
 def bhattacharyya_distance(p: np.ndarray, q: np.ndarray) -> float:
@@ -115,6 +118,7 @@ def load_data(n_subjects: int) -> tuple[HCP, np.ndarray]:
     DL     = HCP(SchaeferSize=1000)
     parc   = DL.get_parcellation()
     coords = parc.get_CoGs()              # (N, 3)  — SchaeferCOG in MATLAB
+    coords = np.delete(coords, EXCLUDE_PARCELS, axis=0)
     print(f"  N parcels : {coords.shape[0]}")
     print(f"  Subjects  : {len(DL.get_groupSubjects('REST1'))}")
     return DL, coords
@@ -138,7 +142,7 @@ def fit_geometry(coords: np.ndarray) -> tuple[HARM, CHARM_SC]:
         epsilon         = EPSILON,
         t_horizon       = T_HORIZON,
         diffusion_steps = DIFF_STEPS,
-        exclude_parcels = EXCLUDE_PARCELS,
+        # exclude_parcels = EXCLUDE_PARCELS,
     )
     harm.fit(coords)
     print(f"  {harm}")
@@ -148,7 +152,7 @@ def fit_geometry(coords: np.ndarray) -> tuple[HARM, CHARM_SC]:
         epsilon         = EPSILON,
         t_horizon       = T_HORIZON,
         diffusion_steps = DIFF_STEPS,
-        exclude_parcels = EXCLUDE_PARCELS,
+        # exclude_parcels = EXCLUDE_PARCELS,
     )
     charm.fit(coords)
     print(f"  {charm}")
@@ -199,7 +203,7 @@ def compute_empirical_distributions(
 
         # Load timeseries for this group: each is (N, T) in Neuroreduce convention
         ts_list = [
-            DL.get_subjectData(subj)[subj]['timeseries']
+            np.delete(DL.get_subjectData(subj)[subj]['timeseries'], EXCLUDE_PARCELS, axis=0)
             for subj in group_subjs
         ]
         p_emp = emp_computer.compute(ts_list)   # (N_valid,)

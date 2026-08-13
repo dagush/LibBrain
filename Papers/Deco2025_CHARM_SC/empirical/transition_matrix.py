@@ -163,8 +163,7 @@ class EmpiricalTransitionMatrix:
         P_n          = LA.matrix_power(Pmatrixemp, self.diffusion_steps)
         p_states     = P_n[0, :]                 # (N,)
 
-        # Remove excluded parcels
-        return self._remove_excluded(p_states, N)
+        return p_states  # self._remove_excluded(p_states, N)  # Remove excluded parcels
 
     # -------------------------------------------------------------------------
     # Private helpers
@@ -265,12 +264,12 @@ class EmpiricalTransitionMatrix:
 
         return Pm2
 
-    def _remove_excluded(self, arr: np.ndarray, N: int) -> np.ndarray:
-        """Remove excluded parcel indices from a 1-D array."""
-        if not self.exclude_parcels:
-            return arr
-        mask = np.ones(N, dtype=bool)
-        for idx in self.exclude_parcels:
-            if 0 <= idx < N:
-                mask[idx] = False
-        return arr[mask]
+    # def _remove_excluded(self, arr: np.ndarray, N: int) -> np.ndarray:
+    #     """Remove excluded parcel indices from a 1-D array."""
+    #     if not self.exclude_parcels:
+    #         return arr
+    #     mask = np.ones(N, dtype=bool)
+    #     for idx in self.exclude_parcels:
+    #         if 0 <= idx < N:
+    #             mask[idx] = False
+    #     return arr[mask]
