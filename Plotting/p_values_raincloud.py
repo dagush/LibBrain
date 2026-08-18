@@ -175,7 +175,7 @@ def plotComparisonAcrossLabels2Ax(
     """
     # ── 0. Stats printout (same as boxplot version) ──────────────────────────
     from Plotting.p_values import printStats, padEqualLengthDicts   # adjust import path as needed
-    printStats(tests)
+    printStats(tests, graph_label=graphLabel)
 
     # ── 1. Resolve column order ───────────────────────────────────────────────
     if columnLables is None:
