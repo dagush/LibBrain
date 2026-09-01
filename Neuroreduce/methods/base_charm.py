@@ -65,7 +65,7 @@ class BaseCHARMKernel:
     def _build_diffusion_matrix(
         self,
         points: np.ndarray,
-        kernel_type: str = 'quantum',
+        kernel_type: str = 'CHARM',
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Build the CHARM diffusion matrix from a set of points.
@@ -75,7 +75,7 @@ class BaseCHARMKernel:
 
         Kernel variants
         ---------------
-        ``'quantum'`` (default, Eq. 10-13 of the 2025 PRE paper):
+        ``'CHARM'`` (default, Eq. 10-13 of the 2025 PRE paper):
             K[i,j] = exp( i · d²_ij / σ )          complex kernel
             Q      = |K^t|²                          matrix power then |·|²
             P      = D⁻¹ Q                           row-stochastic
@@ -102,23 +102,23 @@ class BaseCHARMKernel:
             M points in D-dimensional space.
             For CHARM-BOLD: (Tm, N) — transposed BOLD, timepoints as rows.
             For CHARM-SC:   (N, 3)  — parcel centroids.
-        kernel_type : {'quantum', 'classical'}
-            Which kernel variant to build. Default: 'quantum'.
+        kernel_type : {'CHARM', 'classical'}
+            Which kernel variant to build. Default: 'CHARM'.
 
         Returns
         -------
         Pmatrix : np.ndarray, shape (M, M)
             Row-stochastic diffusion matrix.
         Ptr_t : np.ndarray, shape (M, M)
-            Raw kernel (classical) or |K^t|² (quantum) before row-normalisation.
+            Raw kernel (classical) or |K^t|² (CHARM) before row-normalisation.
             Stored for Nyström CV: cross-block Ptr_t[T_tr:, :T_tr] is the
             correct left-multiplier in both reconstruction formulas.
         Kmatrix : np.ndarray, shape (M, M)
-            Raw kernel matrix K — complex for quantum, real for classical.
+            Raw kernel matrix K — complex for CHARM, real for classical.
         """
-        if kernel_type not in ('quantum', 'classical'):
+        if kernel_type not in ('CHARM', 'classical'):
             raise ValueError(
-                f"kernel_type must be 'quantum' or 'classical', got {kernel_type!r}"
+                f"kernel_type must be 'CHARM' or 'classical', got {kernel_type!r}"
             )
 
         M = points.shape[0]
@@ -129,7 +129,7 @@ class BaseCHARMKernel:
         diff = points[:, np.newaxis, :] - points[np.newaxis, :, :]  # (M,M,D)
         d2   = np.sum(diff ** 2, axis=2)                             # (M,M) real
 
-        if kernel_type == 'quantum':
+        if kernel_type == 'CHARM':
             # ── Eq. (10): K[i,j] = exp( i · d²_ij / σ ) ─────────────────────
             Kmatrix = np.exp(1j * d2 / self.epsilon)                 # (M,M) complex
 
@@ -177,9 +177,9 @@ class BaseCHARMKernel:
 
         Scaling variants
         ----------------
-        ``'abs'`` (default, quantum CHARM, Eq. 14 of the 2025 PRE paper):
+        ``'abs'`` (default, CHARM, Eq. 14 of the 2025 PRE paper):
             Φ = Re(V[:,1:k+1]) @ diag(|λ|)
-            The magnitude |λ| is used, matching the quantum kernel convention.
+            The magnitude |λ| is used, matching the CHARM kernel convention.
 
         ``'power'`` (classical CHARM, Compare_Analysis_singleTh.m):
             Φ = Re(V[:,1:k+1]) @ diag(λ^τ)    where τ = self.t_horizon
@@ -209,7 +209,7 @@ class BaseCHARMKernel:
             Absolute eigenvalue magnitudes |λ| for the selected modes.
         eigenvalues_k_signed : np.ndarray, shape (k,)
             Signed real eigenvalues λ. Used to build the Nyström denominator —
-            callers raise to the appropriate power (1 for quantum, τ for
+            callers raise to the appropriate power (1 for CHARM, τ for
             classical) and store the result as _eigenvalues_nystrom.
         """
         if eigenvalue_scale not in ('abs', 'power'):
@@ -239,7 +239,7 @@ class BaseCHARMKernel:
 
         # ── Scale Φ columns according to the chosen variant ───────────────────
         if eigenvalue_scale == 'abs':
-            # Eq. (14): Φ = Re(V) @ |Λ|  — quantum default
+            # Eq. (14): Φ = Re(V) @ |Λ|  — CHARM default
             scale = eigenvalues_k                                  # |λ|
         else:
             # Classical: Φ[:,d] *= λ_d^τ  (MATLAB: Phi * LL.^Thorizont)

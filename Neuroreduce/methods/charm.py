@@ -12,7 +12,7 @@ Original MATLAB code by Gustavo Deco.
 Python translation and Neuroreduce integration by Gustavo Patow.
 
 Note: the code refers as "Classical CHARM" to the traditional Harmonics, and
-      "Quantum" or "Quantum CHARM" to the actual CHARM technique.
+      "CHARM" to the actual CHARM technique.
 
 Convention recap (Neuroreduce-wide):
     N  : number of brain parcels / ROIs
@@ -106,7 +106,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         t_horizon: int = 2,
         whiten: bool = False,
         sort_eigenvectors: bool = True,
-        kernel_type: str = 'quantum',
+        kernel_type: str = 'CHARM',
     ):
         """
         Parameters
@@ -114,20 +114,20 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         k : int
             Number of latent dimensions (LATDIM in the paper).
         epsilon : float
-            Kernel bandwidth σ. Paper defaults: 300 (quantum), 400 (classical).
+            Kernel bandwidth σ. Paper defaults: 300 (CHARM), 400 (classical).
         t_horizon : int
-            Diffusion horizon τ. Paper defaults: 2 (quantum), 1 (classical).
-            For quantum: K is raised to this matrix power before |·|².
+            Diffusion horizon τ. Paper defaults: 2 (CHARM), 1 (classical).
+            For CHARM: K is raised to this matrix power before |·|².
             For classical: τ enters only via eigenvalue scaling (λ^τ) and
             the Nyström denominator (Λ^{-τ}) — not the kernel itself.
         whiten : bool
             If True, z-score each row of the projected output across time.
         sort_eigenvectors : bool
             Sort eigenpairs by descending |λ| before selecting top-k.
-        kernel_type : {'quantum', 'classical'}
+        kernel_type : {'CHARM', 'classical'}
             Which kernel variant to use:
 
-            ``'quantum'`` (default):
+            ``'CHARM'`` (default):
                 K[i,j] = exp(i · d²/σ), then Ptr = |K^τ|².
                 Full embedding scales Φ by |λ|.
                 Nyström denominator: λ  (no τ power).
@@ -145,9 +145,9 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         self.t_horizon = t_horizon
         self.sort_eigenvectors = sort_eigenvectors
 
-        if kernel_type not in ('quantum', 'classical'):
+        if kernel_type not in ('CHARM', 'classical'):
             raise ValueError(
-                f"kernel_type must be 'quantum' or 'classical', got {kernel_type!r}"
+                f"kernel_type must be 'CHARM' or 'classical', got {kernel_type!r}"
             )
         self.kernel_type = kernel_type
 
@@ -159,14 +159,14 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         self._eigenvalues: Optional[np.ndarray] = None     # (k,) |λ| magnitudes
         self._eigenvalues_signed: Optional[np.ndarray] = None   # (k,) signed λ
         self._eigenvalues_nystrom: Optional[np.ndarray] = None  # (k,) Nyström denominator:
-        # _eigenvalues_nystrom = λ^τ (classical) or λ (quantum).
+        # _eigenvalues_nystrom = λ^τ (classical) or λ (CHARM).
         # Separating this from _eigenvalues_signed avoids confusion:
         # the Nyström formula always divides by _eigenvalues_nystrom,
         # but the exponent differs between kernel types.
         self._conet: Optional[np.ndarray] = None           # (N, k) parcel-space basis
         self._Pmatrix: Optional[np.ndarray] = None         # (Tm, Tm) row-normalised diffusion matrix
         self._Ptr_t: Optional[np.ndarray] = None           # (Tm, Tm) raw kernel before normalisation:
-        # For quantum: |K^τ|²    For classical: K (real Gaussian)
+        # For CHARM: |K^τ|²    For classical: K (real Gaussian)
         # Either way, _Ptr_t[T_tr:, :T_tr] is the correct cross-block for
         # evaluate_fc_cv() — the left-multiplier in the Nyström reconstruction.
 
@@ -201,7 +201,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
 
         # Compute latent embedding Φ ∈ ℝ^(Tm × k).
         # _latent() returns 7 values; eigenvalues_nystrom is the correct
-        # Nyström denominator for this kernel type (λ^τ classical, λ quantum).
+        # Nyström denominator for this kernel type (λ^τ classical, λ CHARM).
         (self._Phi,
          self._eigenvectors,
          self._eigenvalues,
@@ -312,7 +312,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         -------
         Phi : np.ndarray, shape (Tm, k)
             Latent embedding: first k non-trivial eigenvectors scaled by
-            their eigenvalues (Eq. 14 for quantum; λ^τ scaling for classical).
+            their eigenvalues (Eq. 14 for CHARM; λ^τ scaling for classical).
         eigenvectors_k : np.ndarray, shape (Tm, k)
             Raw (unscaled) eigenvectors — used by Nyström.
         eigenvalues_k : np.ndarray, shape (k,)
@@ -321,11 +321,11 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
             Signed real eigenvalues λ.
         eigenvalues_nystrom : np.ndarray, shape (k,)
             Correct Nyström denominator for this kernel type:
-            λ^τ (classical) or λ (quantum).
+            λ^τ (classical) or λ (CHARM).
         Pmatrix : np.ndarray, shape (Tm, Tm)
             Row-normalised diffusion matrix (stored for Nyström extension).
         Ptr_t : np.ndarray, shape (Tm, Tm)
-            Raw kernel before normalisation: K (classical) or |K^τ|² (quantum).
+            Raw kernel before normalisation: K (classical) or |K^τ|² (CHARM).
             Cross-block Ptr_t[T_tr:, :T_tr] is the left-multiplier in
             evaluate_fc_cv() for both kernel types.
         """
@@ -337,7 +337,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         )
 
         # Eigenvalue scaling differs between kernel types:
-        #   quantum  → Φ[:,d] *= |λ_d|      ('abs')
+        #   CHARM  → Φ[:,d] *= |λ_d|      ('abs')
         #   classical → Φ[:,d] *= λ_d^τ     ('power')
         eigenvalue_scale = 'power' if self.kernel_type == 'classical' else 'abs'
 
@@ -345,12 +345,12 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
             self._eigendecompose(Pmatrix, eigenvalue_scale=eigenvalue_scale)
 
         # Nyström denominator — differs between kernel types:
-        #   quantum  → divide by λ    (no extra power)
+        #   CHARM  → divide by λ    (no extra power)
         #   classical → divide by λ^τ
         if self.kernel_type == 'classical':
             eigenvalues_nystrom = eigenvalues_k_signed ** self.t_horizon
         else:
-            eigenvalues_nystrom = eigenvalues_k_signed  # quantum: just λ
+            eigenvalues_nystrom = eigenvalues_k_signed  # CHARM: just λ
 
         return Phi, eigenvectors_k, eigenvalues_k, eigenvalues_k_signed, \
                eigenvalues_nystrom, Pmatrix, Ptr_t
@@ -406,7 +406,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         """
         # Delegates to BaseCHARMKernel._nystrom_transform_shared()
         # _eigenvalues_nystrom is the correct Nyström denominator:
-        #   classical: λ^τ    quantum: λ
+        #   classical: λ^τ    CHARM: λ
         return self._nystrom_transform_shared(
             X_new              = X_new,
             X_fit              = self._X_fit,
@@ -446,14 +446,14 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
                ``A = Phi_tr @ Λ_inv @ Phi_tr.T``    (T_tr × T_tr)
            where:
                Classical:  ``Λ_inv = diag(1 / λ^τ)``
-               Quantum:    ``Λ_inv = diag(1 / λ)``
+               CHARM:    ``Λ_inv = diag(1 / λ)``
 
         4. Reconstruct held-out BOLD for all N parcels simultaneously:
                ``X_est = (cross_block @ (A @ X_train.T)).T``  (N × T_test)
            where ``cross_block = _Ptr_t[t_train:, :t_train]``  (T_test × T_tr).
            For classical, this is the raw K cross-block (matching MATLAB's
            ``Pcv = Kmatrix(Ttrain+1:end, 1:Ttrain)``).
-           For quantum, this is the |K^τ|² cross-block.
+           For CHARM, this is the |K^τ|² cross-block.
 
         5. Compute FC on held-out data (corrcoef over parcels):
                ``FC_true = corrcoef(X[:, t_train:])``
@@ -498,7 +498,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
 
         # ------------------------------------------------------------------
         # 1. Training block of the stored kernel → P_tr
-        #    _Ptr_t is (Tm, Tm): K for classical, |K^τ|² for quantum.
+        #    _Ptr_t is (Tm, Tm): K for classical, |K^τ|² for CHARM.
         #    Subblock extraction is O(T_tr²), no new kernel build needed.
         # ------------------------------------------------------------------
         block_tr = self._Ptr_t[:t_train, :t_train]          # (T_tr, T_tr)
@@ -522,7 +522,7 @@ class CHARMReducer(DimensionalityReducer, BaseCHARMKernel):
         # 3. Nyström reconstruction matrix A = Φ_tr @ Λ_inv @ Φ_tr.T
         #
         #    Classical:  Λ_inv = diag(1 / λ^τ)   MATLAB: inv(LL.^Thorizont)
-        #    Quantum:    Λ_inv = diag(1 / λ)      MATLAB: inv(LL)  (no τ)
+        #    CHARM:    Λ_inv = diag(1 / λ)      MATLAB: inv(LL)  (no τ)
         # ------------------------------------------------------------------
         if self.kernel_type == 'classical':
             lambda_denom = evals_signed_tr ** self.t_horizon   # λ^τ
