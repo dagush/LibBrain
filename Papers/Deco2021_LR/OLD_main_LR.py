@@ -4,13 +4,14 @@
 # =======================================================================
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from neuronumba.tools.filters import BandPassFilter
 import neuronumba.observables.turbulence2 as turbu2
-from MiniNeuroNumba.compact_bold_simulator import CompactHopfSimulator
+from neuronumba.tools.connectivity_generators.EDR.exponential_distance_rule import EDR_distance_rule
+from neuronumba.tools.connectivity_generators.EDR.exponential_distance_rule import EDR_LR_distance_rule
 
 import Utils.decorators as decorators
-from fitting.EDR.exponential_distance_rule import EDR_distance_rule, EDR_LR_distance_rule
 
 decorators.forceCompute = False  # Use this to force re-computations.
 
@@ -73,6 +74,8 @@ def compute_information_cascade_subject(subj, bpf, turbu, fullDataPath, lambdas)
 
 def compute_information_cascade(lambdas, dist_rule, dist_rule_name):
     fullDataPath = dataPath + dist_rule_name + '/'
+    Path(fullDataPath).mkdir(parents=True, exist_ok=True)
+
     coords = DL.get_parcellation().get_CoGs()
 
     bpf = BandPassFilter(k=2, flp=0.008, fhi=0.08, tr=DL.TR())   # Define a band pass filter
@@ -84,8 +87,7 @@ def compute_information_cascade(lambdas, dist_rule, dist_rule_name):
     # Define the turbulence object
     # =======================================================================
     # Turbu = Turbulence(cog_dist=coords, lambda_val=lambda_v, ignore_nans=True)
-    Turbu = turbu2.Information_cascade(cog_dist=CoGs, lambda_values=lambdas,
-                                       distance_rule=dist_rule)
+    Turbu = turbu2.Information_cascade(cog_dist=CoGs, lambda_values=lambdas,)
     # Turbu = turbu2.Information_transfer(cog_dist=coords,
     #                                     distance_rule=DR.EDR_LR_distance_rule(lambda_val=lambdas[0]))
     Turbu.configure()

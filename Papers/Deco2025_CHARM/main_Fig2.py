@@ -5,8 +5,8 @@ Papers/Deco2025_CHARM/compare_analysis_single_th.py
 Python reproduction of Compare_Analysis_singleTh.m (Deco et al., 2025, PRE)
 using the Neuroreduce library.
 
-Note: the code refers as "Classical CHARM" to the traditional Harmonics, and
-      "Quantum" or "Quantum CHARM" to the actual CHARM technique.
+Note: the code refers as "Classical HARM" to the traditional Harmonics, and
+      "CHARM" to the actual CHARM technique.
 
 Benchmarks three dimensionality-reduction methods on the HCP REST-1 dataset
 (80-parcel DBS atlas, N=62 parcels selected).  Every subject is embedded
@@ -19,9 +19,9 @@ Usage
 
 Methods and their CHARMReducer parameters
 ------------------------------------------
-Classical CHARM:  CHARMReducer(k=LATDIM, epsilon=400, t_horizon=1, kernel_type='classical')
-Quantum CHARM:    CHARMReducer(k=LATDIM, epsilon=300, t_horizon=2, kernel_type='quantum')
-PCA:              PCAReducer(k=LATDIM)   (handled inline — 5 lines of sklearn)
+Classical HARM:  CHARMReducer(k=LATDIM, epsilon=400, t_horizon=1, kernel_type='classical')
+CHARM:           CHARMReducer(k=LATDIM, epsilon=300, t_horizon=2, kernel_type='CHARM')
+PCA:             PCAReducer(k=LATDIM)   (handled inline — 5 lines of sklearn)
 
 Two-step pattern per subject
 -----------------------------
@@ -256,22 +256,22 @@ def pca_cv_fc(ts_z: np.ndarray, latdim: int, t_train: int) -> dict:
 def run_comparison(
     subjects_ts       : list[np.ndarray],
     epsilon_classic   : float = 400.0,
-    epsilon_quantum   : float = 300.0,
+    epsilon_CHARM     : float = 300.0,
     thorizont_classic : int   = 1,
-    thorizont_quantum : int   = 2,
+    thorizont_CHARM   : int   = 2,
     latdim            : int   = LATDIM,
     t_train           : int   = T_TRAIN,
     save_path         : Optional[str] = None,
 ) -> dict:
     """
-    Process all subjects through Classical CHARM, Quantum CHARM, and PCA.
+    Process all subjects through Classical HARM, CHARM, and PCA.
 
     Per-subject pattern
     -------------------
     For each CHARM variant:
 
         reducer = CHARMReducer(k=latdim, epsilon=..., t_horizon=...,
-                               kernel_type='classical'/'quantum')
+                               kernel_type='classical'/'CHARM')
         reducer.fit(ts_z)
         # Metastability from full-data embedding:
         zPhi = zscore(reducer.embedding_, axis=0)   # (Tm, k)
@@ -284,18 +284,18 @@ def run_comparison(
 
     Computational cost note
     -----------------------
-    Quantum CHARM requires a Tm×Tm complex matrix power (O(Tm³) per subject).
+    CHARM requires a Tm×Tm complex matrix power (O(Tm³) per subject).
     For Tm≈1101 this is ~30–60 s/subject on CPU.  For NSUB=1003 subjects,
     consider joblib.Parallel or GPU (cupy) for production runs.
 
     Parameters
     ----------
     subjects_ts        : list of NSUB arrays, each (N_FULL, T_orig)
-    epsilon_classic    : bandwidth for classical CHARM kernel (default 400)
-    epsilon_quantum    : bandwidth for quantum  CHARM kernel (default 300)
+    epsilon_classic    : bandwidth for classical HARM kernel (default 400)
+    epsilon_CHARM    : bandwidth for CHARM kernel (default 300)
     thorizont_classic  : τ for classical CHARM — affects Φ scaling and Nyström
                          denominator, NOT the kernel itself (default 1)
-    thorizont_quantum  : τ for quantum  CHARM — matrix power K^τ (default 2)
+    thorizont_CHARM  : τ for CHARM — matrix power K^τ (default 2)
     latdim             : latent dimensions k (default 7)
     t_train            : training timepoints for CV (default 800)
     save_path          : if given, save results as .npz
@@ -333,8 +333,8 @@ def run_comparison(
         kernel_type='classical',
     )
     reducer_q = CHARMReducer(
-        k=latdim, epsilon=epsilon_quantum, t_horizon=thorizont_quantum,
-        kernel_type='quantum',
+        k=latdim, epsilon=epsilon_CHARM, t_horizon=thorizont_CHARM,
+        kernel_type='CHARM',
     )
 
     for sub_idx, ts_raw in enumerate(subjects_ts):
@@ -361,7 +361,7 @@ def run_comparison(
         ts_z = (ts_filt - mu_p) / (sd_p + 1e-12)   # (N, Tm)
 
         # ------------------------------------------------------------------
-        # Classical CHARM
+        # Classical HARMONICS
         #
         # fit()            → builds full Tm×Tm real kernel, stores _Ptr_t=K
         # embedding_       → (Tm, k) scaled by λ^τ  (MATLAB: Phi*LL.^Thorizont)
@@ -378,7 +378,7 @@ def run_comparison(
         FCestC_acc[sub_idx]    = fc_c['fc_est']
 
         # ------------------------------------------------------------------
-        # Quantum CHARM
+        # CHARM
         #
         # fit()            → builds full Tm×Tm complex kernel K, computes
         #                    |K^τ|², stores _Ptr_t = |K^τ|²
@@ -483,29 +483,29 @@ def analyse_and_plot(
 
     # Whole-cohort Pearson r
     r_classic = np.corrcoef(MetaA, Meta)[0, 1]
-    r_quantum = np.corrcoef(MetaA, MetaQ)[0, 1]
+    r_CHARM = np.corrcoef(MetaA, MetaQ)[0, 1]
     r_pca = np.corrcoef(MetaA, MetaPCA)[0, 1]
     print("\n── Whole-cohort metastability correlation with raw BOLD ──")
     print(f"  PCA:             r = {r_pca    :.4f}")
-    print(f"  Classical CHARM: r = {r_classic:.4f}")
-    print(f"  Quantum  CHARM:  r = {r_quantum:.4f}")
+    print(f"  Classical HARM: r = {r_classic:.4f}")
+    print(f"  CHARM:  r = {r_CHARM:.4f}")
 
     # Rank-sum tests
     _, p_cq = ranksums(CorrMeta, CorrMetaQ)
     _, p_cp = ranksums(CorrMeta, CorrMetaPCA)
     _, p_qp = ranksums(CorrMetaQ, CorrMetaPCA)
     print("\n── Rank-sum: bootstrap meta-r ──")
-    print(f"  Classic vs Quantum: p = {p_cq:.4g}")
+    print(f"  Classic vs CHARM: p = {p_cq:.4g}")
     print(f"  Classic vs PCA:     p = {p_cp:.4g}")
-    print(f"  Quantum  vs PCA:    p = {p_qp:.4g}")
+    print(f"  CHARM  vs PCA:    p = {p_qp:.4g}")
 
     _, p_fcq = ranksums(Corrfitt, CorrfittQ)
     _, p_fcp = ranksums(Corrfitt, CorrfittPCA)
     _, p_fqp = ranksums(CorrfittQ, CorrfittPCA)
     print("\n── Rank-sum: per-subject FC reconstruction r ──")
-    print(f"  Classic vs Quantum: p = {p_fcq:.4g}")
+    print(f"  Classic vs CHARM: p = {p_fcq:.4g}")
     print(f"  Classic vs PCA:     p = {p_fcp:.4g}")
-    print(f"  Quantum  vs PCA:    p = {p_fqp:.4g}")
+    print(f"  CHARM  vs PCA:    p = {p_fqp:.4g}")
 
     def _violin_or_box(ax, data_list, labels, title, ylabel=None):
         try:
@@ -536,8 +536,8 @@ def analyse_and_plot(
     # ── Row 0: scatter MetaA vs each method ───────────────────────────────
     scatter_specs = [
         (MetaPCA, 'PCA', 'k'),
-        (Meta, 'Classical CHARM', 'b'),
-        (MetaQ, 'Quantum CHARM', 'r'),
+        (Meta, 'Classical HARM', 'b'),
+        (MetaQ, 'CHARM', 'r'),
     ]
     for col, (meta_lat, label, color) in enumerate(scatter_specs):
         ax = fig.add_subplot(gs[0, col])
@@ -554,21 +554,21 @@ def analyse_and_plot(
     ax_meta = fig.add_subplot(gs[1, 0])
     _violin_or_box(ax_meta,
                    [CorrMetaPCA, CorrMeta, CorrMetaQ],
-                   ['PCA', 'Classic', 'Quantum'],
+                   ['PCA', 'Classic', 'CHARM'],
                    'Bootstrap meta-r\nvs raw BOLD',
                    ylabel='Pearson r')
 
     ax_fccorr = fig.add_subplot(gs[1, 1])
     _violin_or_box(ax_fccorr,
                    [CorrfittPCA, Corrfitt, CorrfittQ],
-                   ['PCA', 'Classic', 'Quantum'],
+                   ['PCA', 'Classic', 'CHARM'],
                    'FC reconstruction\nPearson r (held-out)',
                    ylabel='Pearson r')
 
     ax_fcmse = fig.add_subplot(gs[1, 2])
     _violin_or_box(ax_fcmse,
                    [ERRfittPCA, ERRfitt, ERRfittQ],
-                   ['PCA', 'Classic', 'Quantum'],
+                   ['PCA', 'Classic', 'CHARM'],
                    'FC reconstruction\nMSE (held-out)',
                    ylabel='MSE')
 
@@ -576,7 +576,7 @@ def analyse_and_plot(
 
     return dict(
         CorrMeta=CorrMeta, CorrMetaQ=CorrMetaQ, CorrMetaPCA=CorrMetaPCA,
-        r_classic=r_classic, r_quantum=r_quantum, r_pca=r_pca,
+        r_classic=r_classic, r_CHARM=r_CHARM, r_pca=r_pca,
     )
 
 
@@ -600,9 +600,9 @@ def run():
     results = run_comparison(
         subjects_ts,
         epsilon_classic   = 400.0,
-        epsilon_quantum   = 300.0,
+        epsilon_CHARM   = 300.0,
         thorizont_classic = 1,
-        thorizont_quantum = 2,
+        thorizont_CHARM = 2,
         latdim            = LATDIM,
         t_train           = T_TRAIN,
         save_path         = '_Data_Produced/' + args.out,

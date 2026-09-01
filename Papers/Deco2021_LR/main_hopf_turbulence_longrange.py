@@ -22,28 +22,28 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
 
-from compact_bold_simulator import CompactHopfSimulator
+from MiniNeuroNumba.compact_bold_simulator import CompactHopfSimulator
 
 # -----------------------------------------------------------------------
-# Observables — replace placeholders with real imports when available
+# Observables
 # -----------------------------------------------------------------------
 from neuronumba.observables.turbulence import Turbulence
-from neuronumba.observables.distance_rule import EDR_LR_distance_rule
+from neuronumba.tools.connectivity_generators.EDR.exponential_distance_rule import EDR_LR_distance_rule
 
-# PLACEHOLDER: Functional Connectivity observable
+# Functional Connectivity observable
 # Replace with your real FC class, e.g.:
 #   from neuronumba.observables.fc import FC
 class FC:
-    """Placeholder — replace with the real FC observable from your library."""
+    """replace with the real FC observable from your library."""
     def from_fmri(self, bold_signal):
         # bold_signal: (T, N) → returns (N, N) Pearson FC matrix
         return np.corrcoef(bold_signal.T)
 
-# PLACEHOLDER: Long-range FC observable
+# Long-range FC observable
 # Receives CoGs in the constructor; returns mean |FC| over long-range pairs.
 class LR_FC:
     """
-    Placeholder — computes mean absolute FC restricted to node pairs whose
+    computes mean absolute FC restricted to node pairs whose
     Euclidean distance exceeds dist_threshold_mm (default 40 mm, matching
     the MATLAB script's IndLong criterion).
 
@@ -61,11 +61,11 @@ class LR_FC:
         """Return mean |FC| over long-range pairs."""
         return float(np.nanmean(np.abs(fc_matrix[self._long_range_mask])))
 
-# PLACEHOLDER: Information cascade / mutual information observable
+# Information cascade / mutual information observable
 # Replace with your real implementation when available.
 class InfoCascade:
     """
-    Placeholder — computes the cross-scale information cascade from the
+    computes the cross-scale information cascade from the
     enstrophy matrices at multiple lambda scales.
 
     Returns

@@ -12,6 +12,7 @@
 #
 # Code by Gustavo Patow, June 9, 2024
 # =======================================================================
+from pathlib import Path
 import numpy as np
 import pandas as pd
 
@@ -22,10 +23,13 @@ import Utils.decorators as decorators
 
 # ------------------------------ HCP Data Loader
 import DataLoaders.HCP_Schaefer2018 as HPC
-DL = HPC.HCP()
+DL = HPC.HCP(SchaeferSize=1000)
+use_100_subjects = False
 # ------------------------------
 
 dataPath = './_Data_Produced/' + DL.name() + '/'
+folder_path = Path(dataPath)
+folder_path.mkdir(parents=True, exist_ok=True)
 
 
 def clean_data(ts, CoGs, id):
@@ -100,7 +104,9 @@ def computeTurbu_subj(subj, timeseries, range, DL):
 def computeTurbu(range, DL, path):
     all_results = {}
     classific = DL.get_classification()
-    c = list(classific.keys())[0:210]
+    c = list(classific.keys())
+    if use_100_subjects:
+        c = c[:100]
     for subj in c:
         print(f'Computing Turbu, subj: {subj}')
         subjData = DL.get_subjectData(subj)
@@ -109,12 +115,13 @@ def computeTurbu(range, DL, path):
 
     save_results(all_results, path)
 
+
 # =======================================================================
 # ==========================================================================
 if __name__=="__main__":
     # decorators.forceCompute = True  # Use this to force re-computations.
     lambdas = [0.18]
-    path = f'_Data_Produced/turbu.csv'
+    path = dataPath + '/turbu.csv'
     computeTurbu(lambdas, DL, path)
     print("done")
 

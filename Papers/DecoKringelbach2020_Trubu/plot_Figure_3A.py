@@ -1,5 +1,5 @@
 """
-check_EDR.py
+plot_Figure_3A.py
 =====================
 Integration tests for EDR distance rule and its use inside Turbulence.
 
@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import DataLoaders.HCP_Schaefer2018 as HCP
-from fitting.EDR.exponential_distance_rule import EDR_distance_rule
+from neuronumba.tools.connectivity_generators.EDR.exponential_distance_rule import EDR_distance_rule
 
 
 # ---------------------------------------------------------------------------

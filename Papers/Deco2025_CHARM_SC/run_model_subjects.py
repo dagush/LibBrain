@@ -63,6 +63,8 @@ EPSILON     = 1400.0
 T_HORIZON   = 2
 DIFF_STEPS  = 50
 OUTPUT_DIR  = '_Data_Produced'
+RESULTS_DIR = '_Results'
+
 
 # Parcels to exclude: 0-indexed [554, 907] = MATLAB 1-indexed [555, 908]
 # These two parcels have NaN BOLD in the Schaefer 1000 atlas.
@@ -265,7 +267,7 @@ def compare_distributions(
 # Plotting: violin plots + Wilcoxon rank-sum test
 # =============================================================================
 
-def plot_results(metrics: dict, output_dir: str) -> None:
+def plot_results(metrics: dict, results_dir: str) -> None:
     """
     Produce violin plots comparing HARM vs CHARM-SC.
     Corresponds to the boxplot + ranksum figures in Model_subjects.m.
@@ -273,7 +275,7 @@ def plot_results(metrics: dict, output_dir: str) -> None:
     Figure 1: Bhattacharyya distance (lower = better)
     Figure 2: Pearson correlation    (higher = better)
     """
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
 
     for metric_key, ylabel, title, lower_is_better in [
         ('kl',   'Bhattacharyya distance', 'State Distribution Fit',    True),
@@ -324,7 +326,7 @@ def plot_results(metrics: dict, output_dir: str) -> None:
         ax.spines['right'].set_visible(False)
         ax.grid(axis='y', alpha=0.2, linestyle=':')
 
-        path = f'{output_dir}/model_subjects_{metric_key}.pdf'
+        path = f'{results_dir}/model_subjects_{metric_key}.pdf'
         fig.savefig(path, bbox_inches='tight', dpi=150)
         fig.savefig(path.replace('.pdf', '.png'), bbox_inches='tight', dpi=150)
         plt.close(fig)
@@ -340,6 +342,7 @@ def main():
     print("Model Subjects: HARM vs CHARM-SC stationary distributions")
     print("=" * 60)
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(RESULTS_DIR, exist_ok=True)
 
     # 1. Load data
     DL, coords = load_data(N_SUBJECTS)
@@ -367,7 +370,7 @@ def main():
 
     # 5. Plot
     print("\nGenerating plots...")
-    plot_results(metrics, OUTPUT_DIR)
+    plot_results(metrics, RESULTS_DIR)
 
     # 6. Save
     out_path = f'{OUTPUT_DIR}/results_model_subjects.mat'

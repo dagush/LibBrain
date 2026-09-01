@@ -30,8 +30,8 @@ Usage
 Output
 ------
     _Data_Produced/results_fc_model.mat
-    _Data_Produced/fc_model_corr.pdf
-    _Data_Produced/fc_model_mse.pdf
+    _Results/fc_model_corr.pdf
+    _Results/fc_model_mse.pdf
 """
 
 import os
@@ -70,6 +70,7 @@ EPSILON      = 1400.0
 T_HORIZON    = 2
 DIFF_STEPS   = 50
 OUTPUT_DIR   = '_Data_Produced'
+RESULTS_DIR = '_Results'
 
 # Parcels 554 and 907 (0-indexed) correspond to MATLAB parcels 555
 # and 908 (1-indexed). These two parcels have NaN entries in the
@@ -287,12 +288,12 @@ def compare_fc(
 # Plotting
 # =============================================================================
 
-def plot_results(metrics: dict, output_dir: str) -> None:
+def plot_results(metrics: dict, results_dir: str) -> None:
     """
     Produce violin plots for FC correlation and MSE, matching FCmodel.m
     figures 1-4.
     """
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(results_dir, exist_ok=True)
 
     plot_specs = [
         ('corr_harm',    'corr_charm',    'Pearson r (FC)',       'fc_corr',  False),
@@ -341,7 +342,7 @@ def plot_results(metrics: dict, output_dir: str) -> None:
         ax.spines['right'].set_visible(False)
         ax.grid(axis='y', alpha=0.2, linestyle=':')
 
-        path = f'{output_dir}/fc_model_{fname}.pdf'
+        path = f'{results_dir}/fc_model_{fname}.pdf'
         fig.savefig(path, bbox_inches='tight', dpi=150)
         fig.savefig(path.replace('.pdf', '.png'), bbox_inches='tight', dpi=150)
         plt.close(fig)
@@ -393,7 +394,7 @@ def main():
 
     # 5. Plot
     print("\nGenerating plots...")
-    plot_results(metrics, OUTPUT_DIR)
+    plot_results(metrics, RESULTS_DIR)
 
     # 6. Save — matching FCmodel.m keys
     out_path = f'{OUTPUT_DIR}/results_fc_model.mat'

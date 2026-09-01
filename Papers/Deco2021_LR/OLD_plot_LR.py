@@ -24,12 +24,15 @@ import neuronumba.tools.matlab_tricks as mTricks  # matlab compatibility tricks
 
 # ------------------------------ Data Loader
 # ----------- ADNI_A
-import DataLoaders.ADNI_A as ADNI
-DL = ADNI.ADNI_A(use360=False, cutTimeSeries=True)
+# import DataLoaders.ADNI_A as ADNI
+# DL = ADNI.ADNI_A(use360=False, cutTimeSeries=True)
 # ----------- ADNI_B
 # ADNI_version = 'N238rev' # ADNI3 / IRFSPGR
 # import DataLoaders.ADNI_B_N238rev as ADNI_B
 # DL = ADNI_B.ADNI_B_N238rev()
+# ----------- HCP Data Loader
+import DataLoaders.HCP_Schaefer2018 as HPC
+DL = HPC.HCP()
 # ------------------------------
 
 dataPath = './_Data_Produced/' + DL.name() + '/'
@@ -120,8 +123,9 @@ def plotInfoCascade(turbus, lambdas):
 # load results
 # =======================================================================
 def load_turbu(dataPath, lambdas, observ):
+    sujes = list(DL.get_classification().keys())[0:20]
     turbus = {}
-    for subj in DL.get_classification():
+    for subj in sujes:
         turbus[subj] = {o: np.zeros(len(lambdas)) for o in observ}
         for pos, lambda_v in enumerate(lambdas):
             subjPath = dataPath + f'subj_{subj}/turbu_{subj}_{lambda_v}.mat'

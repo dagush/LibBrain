@@ -6,9 +6,9 @@
 # (https://www.sciencedirect.com/science/article/pii/S2211124720314601)
 #
 # Part of the Thermodynamics of Mind framework:
-# Kringelbach, M. L., Sanz Perl, Y., & Deco, G. (2024). The Thermodynamics of Mind.
-# Trends in Cognitive Sciences (Vol. 28, Issue 6, pp. 568–581). Elsevier BV.
-# https://doi.org/10.1016/j.tics.2024.03.009
+#   Kringelbach, M. L., Sanz Perl, Y., & Deco, G. (2024). The Thermodynamics of Mind.
+#   Trends in Cognitive Sciences (Vol. 28, Issue 6, pp. 568–581). Elsevier BV.
+#   https://doi.org/10.1016/j.tics.2024.03.009
 #
 # Code by Gustavo Deco, 2020.
 # Translated by Marc Gregoris, May 21, 2024
@@ -26,9 +26,14 @@ import Plotting.p_values as pValues
 # paths
 # =======================================================================
 
-dataPath = './_Data_Produced/turbu.csv'
+dataset_name = 'HCP_schaefer1000'  # change to whichever dataset you are using...
+dataPath = f'./_Data_Produced/{dataset_name}/turbu.csv'
 resultsPath = './_Results/Figure_2A.pdf'
 
+
+# =======================================================================
+# plotting functions
+# =======================================================================
 
 def plotTurbu_lambda(ax, turbuRes, observ_name, lambda_val):
     # --------------------------------------------------------------------------------------------
@@ -79,6 +84,9 @@ def load_turbu(dataPath):
     df = pd.read_csv(dataPath, dtype={'value': object})
     return df
 
+# =======================================================================
+# run!
+# =======================================================================
 def run():
     _observations = {'R_spa_time': 'amplitude turbulence (D)',} # 'Transfer': 'Information Transfer'}
     lambdas = [0.18]
